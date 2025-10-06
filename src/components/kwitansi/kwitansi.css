@@ -1,0 +1,123 @@
+:root{
+  --kw-bg:#ffffff;
+  --kw-muted:#6b6b70;
+  --kw-border:#d9d9de;
+  --kw-input-bg:#f7f7f9;
+}
+
+.kw-page{ 
+  background:var(--kw-bg); 
+  margin:0 16px 16px; 
+  border-radius:4px; 
+  padding:18px; 
+}
+.kw-title{ font-weight:700; font-size:18px; margin:6px 0 16px; }
+
+/* Top right small fields */
+.kw-top-right{ 
+  display:grid; 
+  grid-template-columns: 160px 260px; 
+  gap:8px 12px; 
+  justify-content:end; 
+  margin-bottom:12px; 
+}
+.kw-label{ color:var(--kw-muted); font-size:12px; }
+.kw-input{ 
+  background:var(--kw-input-bg); 
+  border:1px solid var(--kw-border); 
+  border-radius:6px; 
+  padding:6px 10px; 
+  height:28px; 
+  box-sizing:border-box; 
+}
+
+/* Left column 3 fields */
+.kw-left3{ 
+  display:grid; 
+  grid-template-columns: 120px 1fr; 
+  gap:10px 12px; 
+  max-width:520px; 
+}
+.kw-left3 .kw-input{ width:100%; }
+
+.kw-center-label{ text-align:center; font-weight:600; margin:12px 0; }
+
+/* Kwitansi detail grid */
+.kw-detail{ 
+  display:grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap:10px 16px; 
+  align-items:center; 
+  max-width:760px; 
+}
+.kw-detail .full{ grid-column: span 2; }
+
+/* Signature section */
+.kw-signatures{ 
+  display:grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap:8px 16px; 
+  align-items:end; 
+  margin-top:18px; 
+}
+.kw-signatures .kw-sign-label{ text-align:center; font-size:12px; color:var(--kw-muted); }
+.kw-signatures .kw-input{ width:100%; }
+.kw-right-note{ text-align:center; color:var(--kw-muted); font-size:12px; }
+
+/* Responsive breakpoints - Opsi 1: Auto 1-column on small screens */
+@media (max-width: 768px){
+  .kw-page{ 
+    margin:0 8px 16px; 
+    padding:12px; 
+  }
+  
+  /* Top-right becomes 1 column */
+  .kw-top-right{ 
+    grid-template-columns: 1fr; 
+    justify-content:stretch; 
+    max-width:300px;
+  }
+  
+  /* Left3 becomes 1 column */
+  .kw-left3{ 
+    grid-template-columns: 1fr; 
+    max-width:none;
+  }
+  
+  /* Detail becomes 1 column */
+  .kw-detail{ 
+    grid-template-columns: 1fr; 
+    max-width:none;
+  }
+  
+  /* Signatures becomes 2 columns */
+  .kw-signatures{ 
+    grid-template-columns: 1fr 1fr; 
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px){
+  .kw-page{ 
+    margin:0 4px 16px; 
+    padding:8px; 
+  }
+  
+  .kw-title{ 
+    font-size:16px; 
+  }
+  
+  /* All signatures in 1 column */
+  .kw-signatures{ 
+    grid-template-columns: 1fr; 
+  }
+  
+  .kw-input{ 
+    padding:5px 8px; 
+    height:24px;
+  }
+  
+  .kw-label{ 
+    font-size:11px; 
+  }
+}

@@ -1,0 +1,90 @@
+:root{
+  --dash-bg:#f1f1f4;
+  --dash-header:#8f8f96;
+  --dash-nav:#9b9aa1;
+  --dash-text:#ffffff;
+  --dash-muted:#ededf0;
+  --dash-card:#c0bfc4;
+}
+
+.dashboard-wrapper{
+  min-height:100vh;
+  background:var(--dash-bg);
+  color:#222;
+}
+
+.dash-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--dash-header);
+  color:var(--dash-text);
+  padding:14px 18px;
+  border-radius:0; /* full-bleed header */
+  margin:0; /* reach left/right edges */
+  position:sticky; /* keep header visible */
+  top:0;
+  z-index:1000;
+}
+
+.dash-brand{ display:flex; align-items:center; gap:12px; }
+.dash-title{ font-weight:600; line-height:1.1; letter-spacing:0.2px; }
+.dash-title > div:first-child{ font-size:20px; }
+.dash-title > div:last-child{ font-size:18px; }
+
+/* reuse brand-logo shape from Register.css */
+.brand-logo{ width:56px; height:56px; object-fit:contain; border:none; border-radius:0; background:transparent; }
+.brand-logo-fallback{ background:#2e6da4; }
+
+.dash-logout{
+  background:#bdb7b6; color:#fff; border:none; border-radius:18px; padding:8px 14px; font-weight:600; cursor:pointer;
+}
+.dash-logout:hover{ filter:brightness(0.95); }
+
+.dash-menu{ display:flex; gap:24px; align-items:center; }
+
+/* Nav under header */
+.dash-nav{
+  display:flex; gap:24px; align-items:center;
+  background:var(--dash-header);
+  color:var(--dash-text);
+  margin:0 0 10px 0; padding:10px 18px; /* full width, small gap to content */
+  border-radius:0; /* match header edges */
+  position:sticky; /* keep nav visible */
+  top:64px; /* offset below header height */
+  z-index:999;
+}
+.dash-nav-item{ position:relative; padding:6px 0; cursor:default; color:var(--dash-muted); }
+.dash-active{ color:#fff; font-weight:600; }
+.caret{ display:inline-block; margin-left:8px; width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:6px solid var(--dash-muted); vertical-align:middle; }
+
+/* Dropdowns */
+.has-dropdown .nav-btn{
+  background:transparent; color:#fff; border:none; font-weight:600; cursor:pointer;
+}
+.nav-btn.dash-active{ font-weight:700; text-decoration:underline; text-underline-offset:3px; }
+.dropdown{
+  position:absolute; top:100%; left:0; background:#fff; color:#333; min-width:200px;
+  border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:8px 0; display:none; z-index:10;
+}
+.dropdown.open{ display:block; }
+.dropdown-item{
+  display:block; padding:8px 12px; color:#333; text-decoration:none;
+}
+.dropdown-item:hover{ background:#f1f1f4; }
+
+.dash-content{ background:#fff; margin:8px 16px 16px; border-radius:4px; padding:14px; }
+.dash-section-title{ font-weight:600; font-size:16px; margin:8px 0 12px; }
+
+.dash-summary{ display:flex; justify-content:center; padding:12px 0; }
+.summary-box{ background:var(--dash-card); border-radius:2px; width:min(520px, 90%); height:130px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; font-weight:600; }
+.summary-title{ opacity:0.95; }
+
+.dash-list{ padding:18px 0; }
+.list-box{ background:var(--dash-card); border-radius:2px; height:260px; margin:0 auto; width:calc(100% - 40px); max-width:780px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:600; }
+
+@media (max-width: 600px){
+  .dash-title > div:first-child{ font-size:16px; }
+  .dash-title > div:last-child{ font-size:14px; }
+  .brand-logo{ width:48px; height:48px; }
+}

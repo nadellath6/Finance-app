@@ -1,0 +1,160 @@
+:root{
+  --brand-left:#b9b5b5; /* approximate left panel grey */
+  --card-bg:#6f6f75;   /* right panel darker grey */
+  --input-bg:#dcdcdc;  /* light input background */
+  --input-border:#b5b5b9;
+  --text:#ffffff;
+  --muted:#c9c9c9;
+  --btn:#bdb7b6;
+}
+
+.register-wrapper{
+  position:fixed; inset:0; /* lock to viewport, no page scroll */
+  display:flex;
+  align-items:center; /* center vertically */
+  justify-content:center; /* center horizontally */
+  height:100vh; min-height:100vh;
+  background:#f1f1f4;
+  padding:16px; /* spacing from window edges */
+  width:100vw; /* span full window width */
+  overflow:hidden; /* prevent any scrollbars */
+  box-sizing:border-box;
+}
+
+.register-card{
+  display:grid;
+  grid-template-columns: 1fr 1.1fr; /* left brand, right form */
+  width:min(900px, calc(100vw - 32px));
+  min-height:420px;
+  height:min(300px, calc(100vh - 32px)); /* same visual height across Login/Register */
+  max-height:calc(100vh - 32px); /* safety */
+  border-radius:8px;
+  overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,0.15);
+  background:#fff0; /* keep transparent; panels have their own bg */
+}
+
+.brand-side{
+  background:var(--brand-left);
+  color:var(--text);
+  display:flex;
+  align-items:center; /* center vertically between top and bottom */
+  gap:16px;
+  padding:32px 28px; /* equal padding top and bottom */
+  height:100%; /* fill card height */
+}
+
+.brand-logo{
+  width:80px; height:80px;
+  border-radius:0; /* remove oval */
+  object-fit:contain; /* show full logo without cropping */
+  border:none;
+  background:transparent;
+  flex:0 0 auto;
+}
+
+.brand-logo-fallback{
+  background:#2e6da4; /* square fallback */
+}
+
+.brand-text{
+  font-weight:600;
+  letter-spacing:0.3px;
+  display:flex;
+  flex-direction:column;
+  line-height:1.15;
+  font-size:35px;
+}
+
+.form-side{
+  background:var(--card-bg);
+  color:var(--text);
+  padding:28px;
+  display:flex;
+  align-items:center;
+  height:100%; /* fill card height */
+}
+
+.register-form{
+  width:100%;
+  max-width:520px; /* keep form width consistent */
+  margin:0 auto;   /* center form content */
+}
+
+.field{
+  position:relative;
+  margin-bottom:10px;
+}
+
+.input{
+  width:80%;
+  background:var(--input-bg);
+  border:1px solid var(--input-border);
+  border-radius:6px;
+  padding:10px 40px 10px 12px;
+  color:#333;
+  outline:none;
+}
+.input:focus{
+  border-color:#8f8fa6; box-shadow:0 0 0 3px rgba(143,143,166,0.25);
+}
+.input.is-invalid{ border-color:#e57373; box-shadow:0 0 0 3px rgba(229,115,115,0.25); }
+
+.toggle-eye{
+  position:absolute;
+  right:15px; top:50%; transform:translateY(-50%);
+  background:transparent; border:none; cursor:pointer; font-size:18px;
+}
+
+.eye-icon{ width:20px; height:20px; color:#9aa0a6; }
+.toggle-eye:hover .eye-icon{ animation: blink 1.2s linear infinite; }
+@keyframes blink{ 0%, 90%, 100%{ transform: scaleY(1); } 95%{ transform: scaleY(0.1); } }
+
+.signup-btn{
+  width:150px;           /* fixed visual width */
+  max-width:100%;        /* don't overflow on narrow screens */
+  margin:12px auto 0;    /* center horizontally */
+  background:var(--btn);
+  border:none; color:#fff; padding:10px 12px; border-radius:18px; font-weight:600;
+  display:block; box-sizing:border-box;
+}
+
+/* Primary variant (used for Login to match original blue) */
+.btn-primary{ background:#007bff; }
+.btn-primary:hover{ filter:brightness(0.95); }
+.signup-btn:hover{ filter:brightness(0.95); }
+.signup-btn:disabled{ opacity:0.6; cursor:not-allowed; }
+
+.login-hint{ color:var(--muted); font-size:14px; text-align:center; margin-top:12px; }
+.login-link{ color:#fff; text-decoration:none; }
+.login-link:hover{ text-decoration:underline; }
+
+.error-text{ color:#ffd7d7; font-size:12px; margin:6px 0 0 8px; }
+
+.remember-row{ display:flex; align-items:center; gap:8px; margin:6px 0 8px 2px; color:var(--muted); font-size:14px; }
+
+/* Responsive */
+@media (max-width: 720px){
+  .register-card{ grid-template-columns: 1fr; height:min(560px, calc(100vh - 32px)); min-height: unset; width:calc(100vw - 32px); max-height:calc(100vh - 32px); }
+  .brand-side{ justify-content:center; }
+}
+
+/* On very small screens, make the button full-width for usability */
+@media (max-width: 420px){
+  .signup-btn{ width:100%; }
+}
+
+/* Reduce paddings/fonts to fit low-height windows without scrolling */
+@media (max-height: 700px){
+  .brand-side{ padding:10px; }
+  .form-side{ padding:10px; }
+  .brand-text{ font-size:25px; }
+  .register-card{ min-height:unset; }
+  .input{ padding:8px 36px 8px 10px; }
+  .signup-btn{ margin-top:8px; padding:8px 10px; }
+}
+
+@media (max-height: 560px){
+  .brand-text{ font-size:20px; }
+  .brand-logo{ width:56px; height:56px; }
+}
