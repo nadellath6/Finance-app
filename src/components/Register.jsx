@@ -1,8 +1,8 @@
+import instansiAsset from "../assets/instansi - logo.png";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register } from "../services/auth";
 import "./Register.css"; // Keep for custom branding pieces during migration
-import instansiAsset from "../assets/instansi - logo.png";
 
 // Logo component: try env-provided URL first, then common filenames in /public, then /vite.svg, finally a colored circle
 function LogoCircle(){
@@ -10,12 +10,6 @@ function LogoCircle(){
     instansiAsset,
     import.meta.env?.VITE_LOGO_URL,
     "/instansi-logo.png",
-    "/logo.png",
-    "/logo.jpg",
-    "/logo.jpeg",
-    "/logo.svg",
-    "/logo.webp",
-    "/vite.svg",
   ].filter(Boolean);
 
   const [idx, setIdx] = useState(0);

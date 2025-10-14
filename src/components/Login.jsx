@@ -1,9 +1,9 @@
+import instansiAsset from "../assets/instansi - logo.png";
 import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
 import { auth } from "../firebase";
 import { Link, useNavigate } from "react-router-dom";
 import "./Register.css"; // Keep for now (logo + brand text) – will prune later
-import instansiAsset from "../assets/instansi - logo.png";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -130,12 +130,6 @@ function LogoCircle(){
     instansiAsset,
     import.meta.env?.VITE_LOGO_URL,
     "/instansi-logo.png",
-    "/logo.png",
-    "/logo.jpg",
-    "/logo.jpeg",
-    "/logo.svg",
-    "/logo.webp",
-    "/vite.svg",
   ].filter(Boolean);
   const [idx, setIdx] = useState(0);
   const [failed, setFailed] = useState(false);

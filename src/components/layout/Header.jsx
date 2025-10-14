@@ -70,12 +70,6 @@ function LogoCircle(){
     instansiAsset,
     import.meta.env?.VITE_LOGO_URL,
     "/instansi-logo.png",
-    "/logo.png",
-    "/logo.jpg",
-    "/logo.jpeg",
-    "/logo.svg",
-    "/logo.webp",
-    "/vite.svg",
   ].filter(Boolean);
   const [idx, setIdx] = React.useState(0);
   const [failed, setFailed] = React.useState(false);
