@@ -1,0 +1,175 @@
+.preview-overlay { position: fixed; inset:0; background: rgba(0,0,0,0.4); z-index: 1050; display:flex; align-items:flex-start; justify-content:center; padding: 2rem 1rem; overflow:auto; }
+.preview-dialog { background:#fff; border-radius:6px; padding:1rem 1.25rem 2rem; max-width:900px; width:100%; }
+.a4-sheet { width:210mm; height:auto; min-height:calc(297mm + 12mm); max-width:100%; box-sizing:border-box; }
+.doc-frame { background:#fff; border:1px solid #ccc; padding:18mm 16mm 22mm; position:relative; }
+.doc-frame.dual { display:flex; flex-direction:column; gap:34mm; padding:15mm 18mm 18mm; }
+.spec-layout .receipt-block { position:relative; padding-top:4mm; }
+.top-right-block { position:absolute; top:0; right:-11mm; font-size:9.6pt; width:70mm; }
+.top-right-block .top-meta { width:100%; border-collapse:collapse; }
+.top-right-block .top-meta td { padding:1px 2px; vertical-align:top; }
+.align-right-meta .meta-label { text-align:right; white-space:nowrap; padding-left:4mm; }
+.align-right-meta .meta-colon { padding:0 3px; }
+.align-right-meta .meta-value { text-align:right; }
+.meta-like-amount { width:100%; border-collapse:collapse; }
+.meta-like-amount td { padding:1px 2px; font-size:9.6pt; }
+.meta-like-amount .meta-label { white-space:nowrap; padding-right:8px; }
+.meta-like-amount .meta-value { text-align:left; }
+.meta-colon-layout .meta-label { padding-right:2px; }
+.meta-colon-layout .meta-colon { width:6px; text-align:center; padding:0 2px; }
+.meta-colon-layout .meta-value { padding-left:2px; }
+.meta-dotted { display:inline-block; min-width:48mm; padding:0 2px; text-align:left; }
+.title-center { text-align:center; font-weight:700; margin:19mm 0 6mm; letter-spacing:0.5px; }
+.info-row { display:flex; flex-direction:row; justify-content:space-between; gap:18mm; }
+.receipt-block .info-left { margin-left:-15mm; margin-top:-5mm; }
+.info-left table td { padding:1px 2px; font-size:10pt; }
+.info-left .lbl { white-space:nowrap; }
+.info-left .dotted { border-bottom:none; min-width:55mm; }
+.info-left .uraian-row td { padding-top:10mm; vertical-align:top; }
+.info-left .uraian-amount-cell { padding-left:8mm; }
+.amount-table.inline { border-collapse:collapse; }
+.amount-table.inline td.acolon { width:8px; text-align:center; padding:0 2px; }
+.amount-table.inline td.acurrency { width:16px; white-space:nowrap; }
+.amount-table.inline td.condensed-val { text-align:right; min-width:32mm; }
+.amount-table.inline td.albl { white-space:nowrap; padding-right:6px; }
+.amount-table.inline tr.total td.condensed-val { position:relative; }
+.amount-table.inline tr.total td.condensed-val:before { content:""; position:absolute; left:0; right:0; top:-2px; border-top:1px solid #000; }
+.amount-table.inline td { padding:1px 4px 1px 2px; }
+.amount-table { border-collapse:collapse; font-size:10pt; }
+.amount-table td { padding:1px 4px 1px 2px; }
+.amount-table .albl { white-space:nowrap; padding-right:8px; }
+.amount-table .value { text-align:right; min-width:48mm; }
+.amount-table .dotted { border-bottom:none; }
+.dotted.short { min-width:28mm; }
+.dotted.wide { min-width:60mm; }
+.signature-row { display:flex; justify-content:space-between; margin-top:16mm; }
+.signature-row .sig-col { width:23%; text-align:center; font-size:9.8pt; }
+.sig-label { font-size:9pt; min-height:22px; white-space:normal; }
+.sig-label.sig-shift-right { margin-left:-15mm; }
+.sig-label.sig-shift-mengetahui { margin-left:-10mm; }
+.sig-label.sig-left { display:block; width:100%; text-align:left; }
+.sig-label .line-left { display:block; text-align:left; margin-left:-5mm; }
+.sig-label .line-center { display:block; text-align:center; }
+.sig-label.sig-lokasi-left { text-align:left; margin-left:-5mm; }
+.sig-space { height:36mm; }
+.sig-name-line { text-decoration:underline; font-weight:600; font-size:9.5pt; }
+.sig-nip { font-size:8.5pt; margin-top:3px; }
+
+/* Shift only Pengguna Anggaran (first column) name & NIP 5mm to the left */
+.signature-row .sig-col:first-child .sig-name-line,
+.signature-row .sig-col:first-child .sig-nip {
+  margin-left:-10mm; /* shift additional 5mm left (total 10mm) */
+  text-align:center; /* keep centered text */
+  display:block; /* stack vertically without overlap */
+}
+
+/* Shift Penerima (last column) name down by total 9mm */
+.signature-row .sig-col:last-child .sig-name-line {
+  margin-top:9mm;
+}
+/* Bring NIP directly under Name for Pengguna Anggaran (remove vertical gap) */
+.signature-row .sig-col:first-child .sig-nip { margin-top:0; }
+.colon { padding:0 4px; }
+.spec-layout .receipt-block + .receipt-block { margin-top:6mm; }
+
+/* Move all signature names/NIP up by 10mm */
+.signature-row .sig-space { height:26mm; }
+
+
+@media print {
+  .spec-layout .receipt-block { padding-top:2mm; }
+  .doc-frame.dual { gap:28mm; }
+  .title-center { margin:5mm 0 4mm; }
+  .signature-row { margin-top:14mm; }
+}
+.doc-table { width:100%; font-size: 0.85rem; border-collapse:collapse; }
+.doc-table td { padding:4px 6px 4px 0; vertical-align:top; }
+.doc-table td.w-30 { width:32%; }
+.signatures { font-size:0.75rem; }
+.sig-row { display:flex; gap:1.25rem; justify-content:space-between; }
+.sig-title { text-align:center; font-weight:600; margin-bottom:48px; }
+.sig-space { height:64px; }
+.sig-name { text-align:center; }
+.preview-toolbar { border-bottom:1px solid #e3e3e3; padding-bottom:0.25rem; margin-bottom:0.75rem; }
+
+@media (max-width: 900px) { .sig-row { flex-wrap:wrap; } .sig-row > div { flex: 1 1 45%; } }
+
+@media print {
+  .preview-overlay { position:static; background:transparent; padding:0; }
+  .preview-dialog { box-shadow:none !important; padding:0; }
+  .preview-toolbar, .print-hint, .btn { display:none !important; }
+  body { background:#fff !important; }
+  .doc-frame { border:none; padding:0; }
+  /* keep A4 wrapper clean in print */
+}
+
+@page { size: A4 portrait; margin: 0; }
+
+/* Dual receipt specific styles */
+.receipt-block { font-family: Arial, sans-serif; font-size:11pt; line-height:1.25; position:relative; }
+.title-kwitansi { font-weight:600; font-size:10.5pt; letter-spacing:0.5px; margin-bottom:4mm; }
+.receipt-top-grid { display:grid; grid-template-columns: 42% 16% 42%; column-gap:12px; }
+.tbl-left, .tbl-right, .tbl-mid, .tbl-amt { border-collapse:collapse; font-size:10.2pt; }
+.tbl-left td, .tbl-right td, .tbl-mid td, .tbl-amt td { padding:1px 2px; vertical-align:top; }
+.tbl-left td.lbl, .tbl-right td.lbl { white-space:nowrap; }
+.colon { padding:0 4px; }
+.line-val { min-width:38mm; border-bottom:none; }
+.line-val.short { min-width:26mm; }
+.amt-line { min-width:32mm; }
+.amt { text-align:left; }
+.rp { width:14px; white-space:nowrap; }
+.tbl-amt { margin-top:4mm; }
+.uraian-cell { min-height:14mm; display:block; }
+.align-top { vertical-align:top !important; }
+.signature-row { display:flex; justify-content:space-between; margin-top:14mm; }
+.sig-col { width:23%; text-align:center; font-size:10pt; }
+.sig-label { font-size:9.2pt; margin-bottom:4mm; }
+.sig-space { height:36mm; }
+.sig-name-line { font-weight:600; text-decoration:underline; font-size:9.8pt; }
+.sig-nip { font-size:8.6pt; margin-top:2px; }
+
+@media print {
+  .doc-frame.dual { gap:30mm; padding:8mm 14mm 6mm; }
+  .receipt-block { page-break-inside:avoid; }
+}
+
+/* Unified font sizing for entire receipt (Arial 11pt) */
+.receipt-block, .receipt-block * { font-size:11pt !important; font-family: Arial, sans-serif !important; }
+
+/* PDF-only shift: when generating PDF, temporarily add this class on .doc-frame */
+.doc-frame.pdf-shift { transform: translateY(-10mm); }
+
+/* PDF-only gap: when generating PDF, set gap to 10mm for dual copies */
+.doc-frame.dual.pdf-gap-10 { gap: 10mm !important; }
+
+/* PDF-only tighter padding to help one-page fit */
+.doc-frame.pdf-tight { padding: 10mm 14mm 12mm !important; }
+
+/* PDF-only: set signature spacing to exactly 5mm */
+.doc-frame.pdf-sign-gap-5 .signature-row .sig-space { height: 5mm !important; }
+
+/* PDF-only: set signature spacing to exactly 10mm */
+.doc-frame.pdf-sign-gap-10 .signature-row .sig-space { height: 10mm !important; }
+
+/* PDF-only: set signature spacing to exactly 15mm */
+.doc-frame.pdf-sign-gap-15 .signature-row .sig-space { height: 15mm !important; }
+
+/* PDF-only: remove frame border to avoid bottom line in PDF render */
+.doc-frame.pdf-noborder { border: none !important; }
+
+/* PDF/PRINT-only: hilangkan padding bawah agar tidak ada jarak setelah salinan ke-2 */
+.doc-frame.pdf-trim-bottom { padding-bottom: 0 !important; }
+
+/* PDF-only: move KWITANSI title up by 5mm */
+.doc-frame.pdf-title-up-5 .title-center { margin-top: 14mm !important; }
+
+/* PRINT-only: geser semua isi ke kiri 5mm */
+.doc-frame.print-shift-left-5 { margin-left: -5mm !important; }
+
+/* PRINT-only: geser semua isi ke kanan 10mm */
+.doc-frame.print-shift-right-10 { margin-left: 10mm !important; }
+
+/* PRINT-only: geser semua isi ke bawah 5mm */
+.doc-frame.print-shift-down-5 { margin-top: 5mm !important; }
+
+/* PRINT-only: geser semua isi ke bawah 3mm */
+.doc-frame.print-shift-down-3 { margin-top: 3mm !important; }

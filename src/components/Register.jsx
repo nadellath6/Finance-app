@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register } from "../services/auth";
-import "./Register.css";
+import "./Register.css"; // Keep for custom branding pieces during migration
 import instansiAsset from "../assets/instansi - logo.png";
 
 // Logo component: try env-provided URL first, then common filenames in /public, then /vite.svg, finally a colored circle
@@ -69,25 +69,26 @@ function Register() {
   };
 
   return (
-    <div className="register-wrapper">
-      <div className="register-card">
-        <aside className="brand-side" aria-label="Brand">
-          <LogoCircle />
-          <div className="brand-text">
-            <span>DINAS</span>
-            <span>PEMBERDAYAAN</span>
-            <span>MASYARAKAT</span>
-            <span>DAN DESA</span>
-            <span>KABUPATEN</span>
-            <span>NGANJUK</span>
+    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light px-3">
+  <div className="row g-0 shadow-lg rounded overflow-hidden w-100" style={{maxWidth: '760px'}}>
+        <div className="col-md-5 d-flex flex-column bg-secondary text-white p-4 justify-content-center">
+          <div className="d-flex align-items-center gap-3 mb-3">
+            <LogoCircle />
+            <div className="brand-text d-flex flex-column lh-1 fw-semibold">
+              <span>DINAS</span>
+              <span>PEMBERDAYAAN</span>
+              <span>MASYARAKAT</span>
+              <span>DAN DESA</span>
+              <span>KABUPATEN</span>
+              <span>NGANJUK</span>
+            </div>
           </div>
-        </aside>
-
-        <section className="form-side">
-          <form onSubmit={handleRegister} className="register-form" noValidate>
-            <div className="field">
+        </div>
+        <div className="col-md-7 bg-body-secondary p-4 d-flex align-items-center">
+          <form onSubmit={handleRegister} className="w-100" noValidate>
+            <div className="mb-3 position-relative">
               <input
-                className="input"
+                className="form-control form-control-sm"
                 type="text"
                 placeholder="Username"
                 value={username}
@@ -95,9 +96,9 @@ function Register() {
                 autoComplete="username"
               />
             </div>
-            <div className="field">
+            <div className="mb-3 position-relative">
               <input
-                className="input"
+                className="form-control form-control-sm"
                 type="email"
                 placeholder="Email"
                 value={email}
@@ -106,10 +107,10 @@ function Register() {
                 autoComplete="email"
               />
             </div>
-            <div className="field">
+            <div className="mb-3 position-relative">
               <input
-                className="input"
-                type={showPwd ? "text" : "password"}
+                className="form-control form-control-sm pe-5"
+                type={showPwd ? 'text' : 'password'}
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -119,18 +120,19 @@ function Register() {
               />
               <button
                 type="button"
-                className="toggle-eye"
-                aria-label={showPwd ? "Sembunyikan password" : "Tampilkan password"}
+                className="btn btn-sm btn-link text-secondary position-absolute top-50 end-0 translate-middle-y pe-3"
+                aria-label={showPwd ? 'Sembunyikan password' : 'Tampilkan password'}
                 aria-pressed={showPwd}
-                onClick={() => setShowPwd((s) => !s)}
+                onClick={() => setShowPwd(s => !s)}
+                style={{textDecoration:'none'}}
               >
                 <EyeIcon closed={!showPwd} />
               </button>
             </div>
-            <div className="field">
+            <div className="mb-2 position-relative">
               <input
-                className={`input ${confirmMismatch ? 'is-invalid' : ''}`}
-                type={showConfirmPwd ? "text" : "password"}
+                className={`form-control form-control-sm pe-5 ${confirmMismatch ? 'is-invalid' : ''}`}
+                type={showConfirmPwd ? 'text' : 'password'}
                 placeholder="Confirm Password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -140,25 +142,24 @@ function Register() {
               />
               <button
                 type="button"
-                className="toggle-eye"
-                aria-label={showConfirmPwd ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
+                className="btn btn-sm btn-link text-secondary position-absolute top-50 end-0 translate-middle-y pe-3"
+                aria-label={showConfirmPwd ? 'Sembunyikan konfirmasi password' : 'Tampilkan konfirmasi password'}
                 aria-pressed={showConfirmPwd}
-                onClick={() => setShowConfirmPwd((s) => !s)}
+                onClick={() => setShowConfirmPwd(s => !s)}
+                style={{textDecoration:'none'}}
               >
                 <EyeIcon closed={!showConfirmPwd} />
               </button>
               {confirmMismatch && (
-                <p className="error-text">Konfirmasi password tidak cocok</p>
+                <p className="text-danger small mt-1 mb-0">Konfirmasi password tidak cocok</p>
               )}
             </div>
-
-            <button type="submit" className="signup-btn" disabled={!!confirmMismatch}>Sign Up</button>
-            <p className="login-hint">
-              Already have an account? {" "}
-              <Link className="login-link" to="/login">Log in</Link>
-            </p>
+            <div className="d-flex flex-column align-items-center mt-3">
+              <button type="submit" className="btn btn-secondary rounded-pill px-4 fw-semibold" disabled={!!confirmMismatch}>Sign Up</button>
+              <p className="text-secondary small mt-3 mb-0">Already have an account? <Link to="/login" className="text-decoration-none fw-semibold">Log in</Link></p>
+            </div>
           </form>
-        </section>
+        </div>
       </div>
     </div>
   );

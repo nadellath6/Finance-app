@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
 import { auth } from "../firebase";
 import { Link, useNavigate } from "react-router-dom";
-import "./Register.css";
+import "./Register.css"; // Keep for now (logo + brand text) – will prune later
 import instansiAsset from "../assets/instansi - logo.png";
 
 function Login() {
@@ -40,25 +40,26 @@ function Login() {
   };
 
   return (
-    <div className="register-wrapper login-compact">
-      <div className="register-card">
-        <aside className="brand-side" aria-label="Brand">
-          <LogoCircle />
-          <div className="brand-text">
-            <span>DINAS</span>
-            <span>PEMBERDAYAAN</span>
-            <span>MASYARAKAT</span>
-            <span>DAN DESA</span>
-            <span>KABUPATEN</span>
-            <span>NGANJUK</span>
+    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light px-3">
+  <div className="row g-0 shadow-lg rounded overflow-hidden w-100" style={{maxWidth: '760px'}}>
+        <div className="col-md-5 d-flex flex-column bg-secondary text-white p-4 justify-content-center">
+          <div className="d-flex align-items-center gap-3 mb-3">
+            <LogoCircle />
+            <div className="brand-text d-flex flex-column lh-1 fw-semibold">
+              <span>DINAS</span>
+              <span>PEMBERDAYAAN</span>
+              <span>MASYARAKAT</span>
+              <span>DAN DESA</span>
+              <span>KABUPATEN</span>
+              <span>NGANJUK</span>
+            </div>
           </div>
-        </aside>
-
-        <section className="form-side">
-          <form onSubmit={handleLogin} className="register-form" autoComplete="on" noValidate>
-            <div className="field">
+        </div>
+        <div className="col-md-7 bg-body-secondary p-4 d-flex align-items-center">
+          <form onSubmit={handleLogin} className="w-100" autoComplete="on" noValidate>
+            <div className="mb-3 position-relative">
               <input
-                className="input"
+                className="form-control form-control-sm"
                 type="email"
                 placeholder="Email"
                 value={email}
@@ -68,10 +69,10 @@ function Login() {
                 name="email"
               />
             </div>
-            <div className="field">
+            <div className="mb-2 position-relative">
               <input
-                className="input"
-                type={showPwd ? "text" : "password"}
+                className="form-control form-control-sm pe-5"
+                type={showPwd ? 'text' : 'password'}
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -81,26 +82,25 @@ function Login() {
               />
               <button
                 type="button"
-                className="toggle-eye"
-                aria-label={showPwd ? "Sembunyikan password" : "Tampilkan password"}
+                className="btn btn-sm btn-link text-secondary position-absolute top-50 end-0 translate-middle-y pe-3"
+                aria-label={showPwd ? 'Sembunyikan password' : 'Tampilkan password'}
                 aria-pressed={showPwd}
-                onClick={() => setShowPwd((s) => !s)}
+                onClick={() => setShowPwd(s => !s)}
+                style={{textDecoration:'none'}}
               >
                 <EyeIcon closed={!showPwd} />
               </button>
             </div>
-
-            <div className="remember-row">
+            <div className="d-flex align-items-center gap-2 mb-3 small text-secondary">
               <input id="rememberMe" type="checkbox" checked={rememberMe} onChange={(e)=>setRememberMe(e.target.checked)} />
-              <label htmlFor="rememberMe">Ingat saya</label>
+              <label htmlFor="rememberMe" className="m-0">Ingat saya</label>
             </div>
-            <button type="submit" className="signup-btn">Login</button>
-            <p className="login-hint">
-              Belum punya akun? {" "}
-              <Link className="login-link" to="/register">Register</Link>
-            </p>
+            <div className="d-flex flex-column align-items-center">
+              <button type="submit" className="btn btn-secondary rounded-pill px-4 fw-semibold">Login</button>
+              <p className="text-secondary small mt-3 mb-0">Don't have an account? <Link to="/register" className="text-decoration-none fw-semibold">Register</Link></p>
+            </div>
           </form>
-        </section>
+        </div>
       </div>
     </div>
   );
