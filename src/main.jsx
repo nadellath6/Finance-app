@@ -5,6 +5,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 import App from './App.jsx'
 import instansiLogo from './assets/instansi - logo.png'
+import { ToastProvider } from './components/ui/ToastProvider.jsx'
 
 // Set favicon to instansi logo (overrides any default vite.svg)
 function applyFavicon(href) {
@@ -24,6 +25,8 @@ applyFavicon(instansiLogo);
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <ToastProvider>
+      <App />
+    </ToastProvider>
   </StrictMode>,
 )

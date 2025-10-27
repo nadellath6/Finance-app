@@ -114,17 +114,19 @@ function ReceiptBlock({ index, data }) {
 }
 
 function PreviewModal({ data, onClose }) {
-  const copies = [data, data];
   return (
     <div className="preview-overlay">
-  <div className="preview-dialog a4-sheet shadow">
+      <div className="preview-dialog shadow">
         <div className="preview-toolbar d-flex justify-content-between align-items-center mb-2">
           <span className="fw-semibold small">Preview Kwitansi</span>
           <div className="d-flex gap-2">
             <button className="btn btn-sm btn-secondary" onClick={onClose}>Tutup</button>
           </div>
         </div>
-        <ReceiptDocument data={data} />
+        {/* A4 paper wrapper: ukuran persis 210x297mm */}
+        <div className="a4-sheet">
+          <ReceiptDocument data={data} />
+        </div>
         <div className="print-hint small text-muted mt-2">Cetak untuk hasil akhir.</div>
       </div>
     </div>

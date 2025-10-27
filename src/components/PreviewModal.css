@@ -1,5 +1,5 @@
-.preview-overlay { position: fixed; inset:0; background: rgba(0,0,0,0.4); z-index: 1050; display:flex; align-items:flex-start; justify-content:center; padding: 2rem 1rem; overflow:auto; }
-.preview-dialog { background:#fff; border-radius:6px; padding:1rem 1.25rem 2rem; max-width:900px; width:100%; }
+.preview-overlay { position: fixed; inset:0; background: rgba(0,0,0,0.4); z-index: 2000; display:flex; align-items:flex-start; justify-content:center; padding: 2rem 1rem; overflow:auto; }
+.preview-dialog { background:#fff; border-radius:6px; padding:1rem 1.25rem 2rem; width:auto; max-width:none; display:inline-block; }
 .a4-sheet { width:210mm; height:auto; min-height:calc(297mm + 12mm); max-width:100%; box-sizing:border-box; }
 .doc-frame { background:#fff; border:1px solid #ccc; padding:18mm 16mm 22mm; position:relative; }
 .doc-frame.dual { display:flex; flex-direction:column; gap:34mm; padding:15mm 18mm 18mm; }
@@ -78,7 +78,7 @@
 @media print {
   .spec-layout .receipt-block { padding-top:2mm; }
   .doc-frame.dual { gap:28mm; }
-  .title-center { margin:5mm 0 4mm; }
+  .title-center { margin:5mm 0 8mm; }
   .signature-row { margin-top:14mm; }
 }
 .doc-table { width:100%; font-size: 0.85rem; border-collapse:collapse; }
@@ -92,6 +92,11 @@
 .preview-toolbar { border-bottom:1px solid #e3e3e3; padding-bottom:0.25rem; margin-bottom:0.75rem; }
 
 @media (max-width: 900px) { .sig-row { flex-wrap:wrap; } .sig-row > div { flex: 1 1 45%; } }
+
+/* Hapus scaling: ukuran A4 tetap asli, kontainer menyesuaikan lebar isi */
+
+/* Screen-only: perkecil tampilan preview tanpa mempengaruhi hasil print/PDF */
+/* (removed) screen-only scale; ukuran preview mengikuti ukuran A4 tanpa skala */
 
 @media print {
   .preview-overlay { position:static; background:transparent; padding:0; }
@@ -160,7 +165,7 @@
 .doc-frame.pdf-trim-bottom { padding-bottom: 0 !important; }
 
 /* PDF-only: move KWITANSI title up by 5mm */
-.doc-frame.pdf-title-up-5 .title-center { margin-top: 14mm !important; }
+.doc-frame.pdf-title-up-5 .title-center { margin-top: 18mm !important; }
 
 /* PRINT-only: geser semua isi ke kiri 5mm */
 .doc-frame.print-shift-left-5 { margin-left: -5mm !important; }
@@ -173,3 +178,26 @@
 
 /* PRINT-only: geser semua isi ke bawah 3mm */
 .doc-frame.print-shift-down-3 { margin-top: 3mm !important; }
+
+/* Print-only: shift the top-right meta block an additional 5mm left from current (-4mm → 1mm) */
+@media print {
+  .top-right-block { right: 10mm !important; }
+}
+
+/* Preview-only: shift top-right block 5mm further left (now at -14mm) */
+.preview-dialog .top-right-block { right: 6mm; }
+
+/* PDF-only: when .doc-frame has this class, shift top-right block further 3mm left (now at -4mm) */
+.doc-frame.pdf-top-right-left-10 .top-right-block { right: 6mm !important; }
+
+/* Preview-only: shift KWITANSI title 2mm to the left */
+.preview-dialog .title-center { position: relative; left: -2mm; }
+
+/* Print-only: shift KWITANSI title 2mm to the left */
+@media print {
+  .title-center { position: relative; left: -2mm !important; }
+}
+
+/* (cleanup) removed stray duplicate preview rule6 */
+
+/* (reverted) removed user-adjustable CSS variable overrides */

@@ -1,425 +1,326 @@
-import React, { useState } from "react";
-import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
-import KwitansiPreview from "./KwitansiPreview";
+import React, { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
+import Header from "./layout/Header";
+import PreviewModal from "./PreviewModal";
+import ReceiptDocument from "./Receipt";
+import usePrint from "../hooks/usePrint";
+import downloadElementAsPdf from "../lib/pdf";
+import { db, auth } from "../firebase";
+import { addDoc, collection, serverTimestamp, updateDoc, doc } from "firebase/firestore";
+import { useToast } from "./ui/ToastProvider";
+import terbilang from "../lib/terbilang";
+import "./KwitansiHonor.css";
 
 function KwitansiBarang() {
-  const navigate = useNavigate();
+  const toast = useToast();
+  const location = useLocation();
+
+  const [editId, setEditId] = useState(null);
+  const [lembar, setLembar] = useState("");
+  const [buktiKas, setBuktiKas] = useState("");
+  const [kodeRek, setKodeRek] = useState("");
+  const [terimaDari, setTerimaDari] = useState("");
+  const [untukPembayaran, setUntukPembayaran] = useState("");
+  const [uraian] = useState("");
+  const [nota, setNota] = useState(0);
+  const [pph21, setPph21] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
-  const [previewData, setPreviewData] = useState(null);
-  
-  // State untuk form data
-  const [formData, setFormData] = useState({
-    // Business Information
-    businessName: "",
-    businessAddress: "",
-    businessPhone: "",
-    
-    // Bill To
-    customerName: "",
-    date: new Date().toISOString().split('T')[0],
-    
-    // Items
-    items: [
-      { description: "", quantity: 1, price: 0 }
-    ],
-    
-    // Tax
-    taxSetting: "no-tax", // no-tax, include-tax, add-tax
-    taxPercentage: 11,
-    
-    // Payment
-    paymentMethod: "",
-    
-    // Notes
-    notes: ""
-  });
+  const [penggunaNama, setPenggunaNama] = useState("");
+  const [penggunaNip, setPenggunaNip] = useState("");
+  const [pptkNama, setPptkNama] = useState("");
+  const [pptkNip, setPptkNip] = useState("");
+  const [bendaharaNama, setBendaharaNama] = useState("");
+  const [bendaharaNip, setBendaharaNip] = useState("");
+  const [penerimaNama, setPenerimaNama] = useState("");
+  const [dirtyReady, setDirtyReady] = useState(false);
 
-  // Add item
-  const addItem = () => {
-    setFormData({
-      ...formData,
-      items: [...formData.items, { description: "", quantity: 1, price: 0 }]
-    });
-  };
+  const notaNumber = Number(nota) || 0;
+  const pphNumber = Number(pph21) || 0;
+  const pphEnabled = notaNumber > 1000000;
+  const jumlahDiterimakan = notaNumber + (pphEnabled ? pphNumber : 0);
+  const uangSebanyakAuto = jumlahDiterimakan ? `${terbilang(jumlahDiterimakan)} Rupiah` : "";
 
-  // Remove item
-  const removeItem = (index) => {
-    if (formData.items.length > 1) {
-      const newItems = formData.items.filter((_, i) => i !== index);
-      setFormData({ ...formData, items: newItems });
+  useEffect(() => { if (notaNumber === 0 && pph21 !== 0) setPph21(0); }, [notaNumber, pph21]);
+
+  useEffect(() => {
+    const st = location?.state;
+    const prefill = st?.payload || st?.prefill;
+    if (!prefill) {
+      // Tidak ada prefill: mode BUAT BARU, reset form & edit state
+      setDirtyReady(false);
+      setEditId(null);
+      setLembar("");
+      setBuktiKas("");
+      setKodeRek("");
+      setTerimaDari("");
+      setUntukPembayaran("");
+      setNota(0);
+      setPph21(0);
+      setPenggunaNama("");
+      setPenggunaNip("");
+      setPptkNama("");
+      setPptkNip("");
+      setBendaharaNama("");
+      setBendaharaNip("");
+      setPenerimaNama("");
+      try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
+      setTimeout(() => setDirtyReady(true), 0);
+      return;
     }
+    if (prefill.id) setEditId(prefill.id);
+    setLembar(prefill.lembar || "");
+    setBuktiKas(prefill.buktiKas || prefill.buktiKasNomor || "");
+    setKodeRek(prefill.kodeRek || "");
+    setTerimaDari(prefill.terimaDari || prefill.penerima || prefill.customerName || "");
+    setUntukPembayaran(prefill.untukPembayaran || prefill.notes || "");
+    setNota(Number(prefill.notaPembayaran ?? prefill.total ?? 0) || 0);
+    setPph21(Number(prefill.pph21 ?? 0) || 0);
+    const sig = prefill.signatures || {};
+    setPenggunaNama(sig.pengguna?.nama || prefill.penggunaAnggaran || "");
+    setPenggunaNip(sig.pengguna?.nip || prefill.nipPenggunaAnggaran || "");
+    setPptkNama(sig.pptk?.nama || prefill.namaPptk || "");
+    setPptkNip(sig.pptk?.nip || prefill.nipPptk || "");
+    setBendaharaNama(sig.bendahara?.nama || prefill.namaBendahara || "");
+    setBendaharaNip(sig.bendahara?.nip || prefill.nipBendahara || "");
+    setPenerimaNama(sig.penerima?.nama || prefill.penerima || prefill.customerName || "");
+    setDirtyReady(true);
+  }, [location]);
+
+  useEffect(() => { if (!location?.state?.payload && !location?.state?.prefill) setDirtyReady(true); }, []);
+
+  useEffect(() => {
+    if (!dirtyReady) return;
+    try { window.localStorage.setItem('kwitansi_dirty','1'); } catch {}
+  }, [dirtyReady, lembar, buktiKas, kodeRek, terimaDari, untukPembayaran, nota, pph21, penggunaNama, penggunaNip, pptkNama, pptkNip, bendaharaNama, bendaharaNip, penerimaNama]);
+
+  const formatNumber = (val) => { if (val === '' || val === null || isNaN(val)) return ''; return new Intl.NumberFormat('id-ID').format(val); };
+  const parseNumeric = (raw) => { if (raw === '' || raw === null) return 0; const cleaned = String(raw).replace(/[^0-9]/g, ''); return cleaned ? parseInt(cleaned, 10) : 0; };
+
+  const previewData = {
+    lembar,
+    buktiKas,
+    kodeRek,
+    terimaDari,
+    uangSebanyak: uangSebanyakAuto,
+    untukPembayaran,
+    uraian,
+    notaPembayaran: notaNumber,
+    pph21: pphEnabled ? pphNumber : 0,
+    jumlahDiterimakan,
+    tanggal: new Date().toLocaleDateString('id-ID'),
+    penggunaNama,
+    penggunaNip,
+    pptkNama,
+    pptkNip,
+    bendaharaNama,
+    bendaharaNip,
+    penerimaNama,
   };
 
-  // Update item
-  const updateItem = (index, field, value) => {
-    const newItems = [...formData.items];
-    newItems[index][field] = value;
-    setFormData({ ...formData, items: newItems });
-  };
-
-  // Calculate totals
-  const calculateTotal = () => {
-    const subtotal = formData.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    
-    let tax = 0;
-    let total = subtotal;
-    
-    if (formData.taxSetting === "include-tax") {
-      // Tax sudah termasuk dalam harga
-      const taxRate = formData.taxPercentage / 100;
-      tax = subtotal * taxRate / (1 + taxRate);
-      total = subtotal;
-    } else if (formData.taxSetting === "add-tax") {
-      // Tax ditambahkan ke harga
-      tax = subtotal * (formData.taxPercentage / 100);
-      total = subtotal + tax;
-    }
-    
-    return { subtotal, tax, total };
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const { subtotal, tax, total } = calculateTotal();
-    
-    try {
-      await addDoc(collection(db, "kwitansi"), {
-        ...formData,
-        type: "barang",
-        subtotal,
-        tax,
-        total,
-        createdAt: new Date()
-      });
-      alert("Kwitansi Barang berhasil disimpan!");
-      navigate("/dashboard");
-    } catch (error) {
-      alert("Error: " + error.message);
-    }
-  };
-
-  const handlePreview = () => {
-    const { subtotal, tax, total } = calculateTotal();
-    setPreviewData({
-      ...formData,
-      type: "barang",
-      subtotal,
-      tax,
-      total,
-      receiptNumber: `BRG-${Date.now()}`
-    });
-    setShowPreview(true);
-  };
-
+  const printRef = useRef(null);
+  const { printNode } = usePrint({ page: 'A4', orientation: 'portrait', margin: '0' });
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    const printContent = document.getElementById('kwitansi-print').innerHTML;
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Print Kwitansi</title>
-          <style>
-            body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-            @media print {
-              body { margin: 0; padding: 0; }
-              @page { size: A4; margin: 0; }
-            }
-          </style>
-        </head>
-        <body>${printContent}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    if (!printRef.current) return;
+    const frames = printRef.current.querySelectorAll('.doc-frame');
+    frames.forEach(el => {
+      el.classList.add('pdf-shift');
+      if (el.classList.contains('dual')) el.classList.add('pdf-gap-10');
+      el.classList.add('pdf-sign-gap-15','pdf-noborder','pdf-title-up-5','pdf-trim-bottom','print-shift-right-10','print-shift-down-3');
+    });
+    printNode(printRef.current, {
+      title: 'Kwitansi Barang',
+      extraCss: `html, body { max-height: 297mm; overflow: hidden; }
+      .doc-frame, .doc-frame.dual { max-height: 297mm; box-sizing: border-box; overflow: hidden; }`
+    }).finally(() => {
+      frames.forEach(el => el.classList.remove('pdf-shift','pdf-gap-10','pdf-sign-gap-15','pdf-noborder','pdf-title-up-5','pdf-trim-bottom','print-shift-right-10','print-shift-down-3'));
+    });
+  };
+  const handleDownloadPdf = async () => {
+    if (!printRef.current) return;
+    const frames = printRef.current.querySelectorAll('.doc-frame');
+    try {
+      frames.forEach(el => {
+        el.classList.add('pdf-shift');
+        if (el.classList.contains('dual')) el.classList.add('pdf-gap-10');
+        el.classList.add('pdf-sign-gap-15','pdf-noborder','pdf-title-up-5','pdf-title-left-2','pdf-trim-bottom','pdf-top-right-left-10');
+      });
+      await downloadElementAsPdf(printRef.current, { filename: 'kwitansi-barang.pdf', page:'a4', orientation:'portrait', margin:0, scale:2 });
+    } catch (e) {
+      console.error('Failed to generate PDF:', e);
+    } finally {
+      frames.forEach(el => el.classList.remove('pdf-shift','pdf-gap-10','pdf-sign-gap-15','pdf-noborder','pdf-title-up-5','pdf-title-left-2','pdf-trim-bottom','pdf-top-right-left-10'));
+    }
   };
 
-  const handleSave = () => {
-    handlePrint(); // For now, use print dialog where user can save as PDF
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+  const handleSave = async () => {
+    setSaveMsg("");
+    setSaving(true);
+    try {
+      const uid = auth?.currentUser?.uid;
+      if (!uid) throw new Error('User belum login');
+      const docData = {
+        type: 'kwitansi-barang',
+        ...(editId ? {} : { createdAt: serverTimestamp() }),
+        ...(editId ? { updatedAt: serverTimestamp() } : {}),
+        createdBy: uid,
+        lembar,
+        buktiKas,
+        kodeRek,
+        terimaDari,
+        uangSebanyak: uangSebanyakAuto,
+        untukPembayaran,
+        uraian,
+        notaPembayaran: notaNumber,
+        pph21: pphEnabled ? pphNumber : 0,
+        jumlahDiterimakan,
+        tanggal: new Date().toISOString(),
+        signatures: {
+          pengguna: { nama: penggunaNama, nip: penggunaNip },
+          pptk: { nama: pptkNama, nip: pptkNip },
+          bendahara: { nama: bendaharaNama, nip: bendaharaNip },
+          penerima: { nama: penerimaNama },
+        },
+      };
+      if (editId) {
+        await updateDoc(doc(db, 'users', uid, 'laporan_barang', editId), docData);
+        toast.success('Data Barang berhasil diperbarui');
+        setSaveMsg('Berhasil diperbarui.');
+      } else {
+        await addDoc(collection(db, 'users', uid, 'laporan_barang'), docData);
+        toast.success('Berhasil disimpan ke Laporan Barang');
+        setSaveMsg('Berhasil disimpan ke Laporan Barang.');
+      }
+      try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
+    } catch (err) {
+      console.error('Gagal simpan:', err);
+      toast.error('Gagal menyimpan. Periksa koneksi atau coba lagi.');
+      setSaveMsg('Gagal menyimpan. Periksa koneksi atau coba lagi.');
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSaveMsg(""), 4000);
+    }
   };
 
-  // Return preview if showPreview is true
-  if (showPreview && previewData) {
-    return (
-      <KwitansiPreview
-        data={previewData}
-        onPrint={handlePrint}
-        onSave={handleSave}
-        onBack={() => setShowPreview(false)}
-      />
-    );
-  }
-
-  const { subtotal, tax, total } = calculateTotal();
-
-  // Return the main form
   return (
-    <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto", backgroundColor: "#f8f9fa" }}>
-      <h2 style={{ textAlign: "center", marginBottom: "30px", color: "#333" }}>📦 Kwitansi Barang</h2>
-      
-      <form onSubmit={handleSubmit}>
-        {/* Business Information */}
-        <div style={{ marginBottom: "25px", padding: "20px", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-          <h3 style={{ marginBottom: "15px", color: "#495057", borderBottom: "2px solid #007bff", paddingBottom: "5px" }}>🏢 Informasi Bisnis</h3>
-          
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
-            <div>
-              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#555" }}>Nama Bisnis</label>
-              <input
-                type="text"
-                value={formData.businessName}
-                onChange={(e) => setFormData({...formData, businessName: e.target.value})}
-                style={{ width: "100%", padding: "12px", border: "1px solid #ddd", borderRadius: "4px" }}
-                required
-              />
-            </div>
-            <div>
-              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#555" }}>Alamat</label>
-              <input
-                type="text"
-                value={formData.businessAddress}
-                onChange={(e) => setFormData({...formData, businessAddress: e.target.value})}
-                style={{ width: "100%", padding: "12px", border: "1px solid #ddd", borderRadius: "4px" }}
-                required
-              />
-            </div>
-          </div>
-          
-          <div style={{ marginTop: "15px" }}>
-            <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#555" }}>Telepon</label>
-            <input
-              type="text"
-              value={formData.businessPhone}
-              onChange={(e) => setFormData({...formData, businessPhone: e.target.value})}
-              style={{ width: "100%", padding: "12px", border: "1px solid #ddd", borderRadius: "4px" }}
-              required
-            />
-          </div>
-        </div>
-
-        {/* Customer Information */}
-        <div style={{ marginBottom: "25px", padding: "20px", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-          <h3 style={{ marginBottom: "15px", color: "#495057", borderBottom: "2px solid #28a745", paddingBottom: "5px" }}>👤 Informasi Pelanggan</h3>
-          
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
-            <div>
-              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#555" }}>Nama Pelanggan</label>
-              <input
-                type="text"
-                value={formData.customerName}
-                onChange={(e) => setFormData({...formData, customerName: e.target.value})}
-                style={{ width: "100%", padding: "12px", border: "1px solid #ddd", borderRadius: "4px" }}
-                required
-              />
-            </div>
-            <div>
-              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#555" }}>Tanggal</label>
-              <input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({...formData, date: e.target.value})}
-                style={{ width: "100%", padding: "12px", border: "1px solid #ddd", borderRadius: "4px" }}
-                required
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Items Section */}
-        <div style={{ marginBottom: "25px", padding: "20px", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
-            <h3 style={{ color: "#495057", borderBottom: "2px solid #ffc107", paddingBottom: "5px", margin: "0" }}>📦 Item Barang</h3>
-            <button
-              type="button"
-              onClick={addItem}
-              style={{ padding: "8px 16px", backgroundColor: "#17a2b8", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-            >
-              ➕ Tambah Item
+    <div className="dashboard-wrapper">
+      <Header />
+      <div className="container py-3">
+        <div className="kwitansi-wrapper">
+          <div className="d-flex justify-content-end mb-2 gap-2 flex-wrap">
+            <button type="button" className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center" onClick={() => setShowPreview(true)}>
+              <EyeIcon className="me-1" /> Preview
+            </button>
+            <button type="button" className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center" onClick={handlePrint}>
+              <PrinterIcon className="me-1" /> Print
+            </button>
+            <button type="button" className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center" onClick={handleDownloadPdf}>
+              <DownloadIcon className="me-1" /> Download PDF
             </button>
           </div>
-
-          {formData.items.map((item, index) => (
-            <div key={index} style={{ marginBottom: "15px", padding: "15px", border: "1px solid #e9ecef", borderRadius: "6px", backgroundColor: "#f8f9fa" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: "10px", alignItems: "end" }}>
-                <div>
-                  <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#555" }}>Deskripsi</label>
-                  <input
-                    type="text"
-                    value={item.description}
-                    onChange={(e) => updateItem(index, 'description', e.target.value)}
-                    style={{ width: "100%", padding: "10px", border: "1px solid #ddd", borderRadius: "4px" }}
-                    placeholder="Misal: Laptop Dell"
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#555" }}>Kuantitas</label>
-                  <input
-                    type="number"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
-                    style={{ width: "100%", padding: "10px", border: "1px solid #ddd", borderRadius: "4px" }}
-                    min="1"
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#555" }}>Harga Satuan</label>
-                  <input
-                    type="number"
-                    value={item.price}
-                    onChange={(e) => updateItem(index, 'price', parseFloat(e.target.value) || 0)}
-                    style={{ width: "100%", padding: "10px", border: "1px solid #ddd", borderRadius: "4px" }}
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeItem(index)}
-                  style={{ padding: "10px", backgroundColor: "#dc3545", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-                  disabled={formData.items.length === 1}
-                >
-                  🗑️
-                </button>
+          <div className="card shadow-sm">
+            <div className="card-header text-center fw-semibold">KWITANSI BARANG</div>
+            <div className="card-body pt-3">
+              {[
+                { label: 'Lembar', key: 'lembar', bind: { value: lembar, onChange: (e)=> setLembar(e.target.value) } },
+                { label: 'Bukti Kas Nomor', key: 'buktiKas', bind: { value: buktiKas, onChange: (e)=> setBuktiKas(e.target.value) } },
+                { label: 'Kode Rekening', key: 'kodeRek', bind: { value: kodeRek, onChange: (e)=> setKodeRek(e.target.value) } },
+                { heading: true, label: 'KWITANSI' },
+                { label: 'Terima Dari', key: 'terimaDari', bind: { value: terimaDari, onChange: (e)=> setTerimaDari(e.target.value) } },
+                { label: 'Uang Sebanyak', key: 'uangSebanyak', bind: { value: uangSebanyakAuto } },
+                { label: 'Untuk pembayaran', key: 'untukPembayaran', bind: { value: untukPembayaran, onChange: (e)=> setUntukPembayaran(e.target.value) } },
+                { label: 'Uraian', noInput: true, key: 'uraian' },
+                { label: 'Nota Pembayaran', key: 'notaPembayaran', type: 'numberCurrency' },
+                { label: 'PPH 21', key: 'pph21', type: 'numberCurrency' },
+                { label: 'Jumlah diterimakan', key: 'jumlahDiterimakan', type: 'calculated' }
+              ].map((f, idx) => {
+                if (f.heading) return (<div key={idx} className="text-center fw-semibold my-2 kwitansi-subtitle">KWITANSI</div>);
+                return (
+                  <div className="kw-row mb-3" key={idx}>
+                    <div className="kw-label-cell">
+                      <label className="form-label small mb-0">{f.label}</label>
+                    </div>
+                    <div className="kw-input-cell">
+                      {f.noInput && <div className="text-muted small fst-italic">&nbsp;</div>}
+                      {!f.noInput && f.type === 'numberCurrency' && f.key === 'notaPembayaran' && (
+                        <input className="form-control form-control-sm" value={nota === 0 ? '' : formatNumber(notaNumber)} onChange={(e)=> setNota(parseNumeric(e.target.value))} inputMode="numeric" placeholder="0" />
+                      )}
+                      {!f.noInput && f.type === 'numberCurrency' && f.key === 'pph21' && (
+                        <input className={`form-control form-control-sm ${!pphEnabled ? 'kw-readonly' : ''}`} value={pphEnabled ? (pph21 === 0 ? '' : formatNumber(pphNumber)) : ''} onChange={(e)=> setPph21(parseNumeric(e.target.value))} inputMode="numeric" disabled={!pphEnabled} />
+                      )}
+                      {!f.noInput && f.type === 'calculated' && f.key === 'jumlahDiterimakan' && (
+                        <input className="form-control form-control-sm kw-readonly" value={jumlahDiterimakan ? formatNumber(jumlahDiterimakan) : ''} readOnly />
+                      )}
+                      {!f.noInput && !f.type && (
+                        f.key === 'uangSebanyak' ? (
+                          <input className="form-control form-control-sm kw-readonly" value={uangSebanyakAuto} readOnly />
+                        ) : (
+                          <input className="form-control form-control-sm" {...(f.bind || {})} />
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="border-top pt-3 mt-3">
+                <p className="small text-muted mb-2">Tanda Tangan</p>
+                {['Pengguna Anggaran','PPTK','Bendahara','Penerima'].map((role, idx) => {
+                  const isPenerima = role === 'Penerima';
+                  const binds = {
+                    'Pengguna Anggaran': { nama: { value: penggunaNama, onChange: (e)=> setPenggunaNama(e.target.value) }, nip: { value: penggunaNip, onChange: (e)=> setPenggunaNip(e.target.value) } },
+                    'PPTK': { nama: { value: pptkNama, onChange: (e)=> setPptkNama(e.target.value) }, nip: { value: pptkNip, onChange: (e)=> setPptkNip(e.target.value) } },
+                    'Bendahara': { nama: { value: bendaharaNama, onChange: (e)=> setBendaharaNama(e.target.value) }, nip: { value: bendaharaNip, onChange: (e)=> setBendaharaNip(e.target.value) } },
+                    'Penerima': { nama: { value: penerimaNama, onChange: (e)=> setPenerimaNama(e.target.value) } }
+                  }[role];
+                  return (
+                    <div className="kw-row mb-3" key={idx}>
+                      <div className="kw-label-cell">
+                        <span className="small fw-semibold signature-role-label">{role}</span>
+                      </div>
+                      {isPenerima ? (
+                        <div className="kw-input-cell">
+                          <input className="form-control form-control-sm mb-0" placeholder={`Nama ${role}`} {...binds.nama} />
+                        </div>
+                      ) : (
+                        <div className="kw-input-cell">
+                          <div className="mb-2">
+                            <input className="form-control form-control-sm" placeholder={`Nama ${role}`} {...binds.nama} />
+                          </div>
+                          <div>
+                            <input className="form-control form-control-sm" placeholder={`NIP ${role}`} {...binds.nip} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div style={{ marginTop: "10px", textAlign: "right", fontWeight: "bold", color: "#495057" }}>
-                Total: Rp {(item.quantity * item.price).toLocaleString('id-ID')}
-              </div>
             </div>
-          ))}
-        </div>
-
-        {/* Tax Settings */}
-        <div style={{ marginBottom: "25px", padding: "20px", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-          <h3 style={{ marginBottom: "15px", color: "#495057", borderBottom: "2px solid #6f42c1", paddingBottom: "5px" }}>🧾 Pengaturan Pajak</h3>
-          
-          <div style={{ display: "flex", gap: "20px", marginBottom: "15px" }}>
-            <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-              <input
-                type="radio"
-                name="taxSetting"
-                value="no-tax"
-                checked={formData.taxSetting === 'no-tax'}
-                onChange={(e) => setFormData({...formData, taxSetting: e.target.value})}
-                style={{ marginRight: "8px" }}
-              />
-              Tanpa Pajak
-            </label>
-            <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-              <input
-                type="radio"
-                name="taxSetting"
-                value="include-tax"
-                checked={formData.taxSetting === 'include-tax'}
-                onChange={(e) => setFormData({...formData, taxSetting: e.target.value})}
-                style={{ marginRight: "8px" }}
-              />
-              Termasuk Pajak
-            </label>
-            <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-              <input
-                type="radio"
-                name="taxSetting"
-                value="add-tax"
-                checked={formData.taxSetting === 'add-tax'}
-                onChange={(e) => setFormData({...formData, taxSetting: e.target.value})}
-                style={{ marginRight: "8px" }}
-              />
-              Tambah Pajak
-            </label>
           </div>
-
-          {formData.taxSetting !== 'no-tax' && (
-            <div>
-              <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", color: "#555" }}>Persentase Pajak (%)</label>
-              <input
-                type="number"
-                value={formData.taxPercentage}
-                onChange={(e) => setFormData({...formData, taxPercentage: parseFloat(e.target.value) || 0})}
-                style={{ padding: "10px", border: "1px solid #ddd", borderRadius: "4px", width: "150px" }}
-                min="0"
-                max="100"
-                step="0.1"
-                placeholder="11"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Payment Method */}
-        <div style={{ marginBottom: "25px", padding: "20px", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-          <h3 style={{ marginBottom: "15px", color: "#495057", borderBottom: "2px solid #fd7e14", paddingBottom: "5px" }}>💳 Metode Pembayaran</h3>
-          
-          <select
-            value={formData.paymentMethod}
-            onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
-            style={{ width: "100%", padding: "12px", border: "1px solid #ddd", borderRadius: "4px", fontSize: "16px" }}
-            required
-          >
-            <option value="">Pilih Metode Pembayaran</option>
-            <option value="cash">Tunai</option>
-            <option value="transfer">Transfer Bank</option>
-            <option value="check">Cek</option>
-            <option value="credit">Kredit</option>
-          </select>
-        </div>
-
-        {/* Notes */}
-        <div style={{ marginBottom: "25px", padding: "20px", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-          <h3 style={{ marginBottom: "15px", color: "#495057", borderBottom: "2px solid #20c997", paddingBottom: "5px" }}>📝 Catatan</h3>
-          
-          <textarea
-            value={formData.notes}
-            onChange={(e) => setFormData({...formData, notes: e.target.value})}
-            style={{ width: "100%", padding: "12px", border: "1px solid #ddd", borderRadius: "4px", minHeight: "100px", resize: "vertical" }}
-            placeholder="Catatan tambahan untuk kwitansi..."
-          />
-        </div>
-
-        {/* Total Summary */}
-        <div style={{ marginBottom: "25px", padding: "20px", backgroundColor: "white", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-          <h3 style={{ marginBottom: "15px", color: "#495057", borderBottom: "2px solid #e83e8c", paddingBottom: "5px" }}>💰 Total</h3>
-          
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", fontSize: "16px" }}>
-            <span>Subtotal:</span>
-            <span style={{ fontWeight: "bold" }}>Rp {subtotal.toLocaleString('id-ID')}</span>
+          <div className="d-flex justify-content-end mt-3">
+            <button type="button" className="btn btn-secondary btn-sm d-inline-flex align-items-center" onClick={handleSave} disabled={saving}>
+              {saving ? 'Menyimpan…' : (editId ? 'Update' : 'Save')}
+            </button>
           </div>
-          
-          {formData.taxSetting !== 'no-tax' && (
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", fontSize: "16px" }}>
-              <span>Pajak ({formData.taxPercentage}%):</span>
-              <span style={{ fontWeight: "bold" }}>Rp {tax.toLocaleString('id-ID')}</span>
-            </div>
-          )}
-          
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "20px", fontWeight: "bold", color: "#007bff", borderTop: "2px solid #007bff", paddingTop: "10px" }}>
-            <span>Total:</span>
-            <span>Rp {total.toLocaleString('id-ID')}</span>
-          </div>
+          {saveMsg && (<div className="mt-2 small text-end">{saveMsg}</div>)}
         </div>
-
-        {/* Action Buttons */}
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            type="button"
-            onClick={handlePreview}
-            style={{ flex: "1", padding: "15px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "6px", fontSize: "16px", fontWeight: "bold" }}
-          >
-            📄 Preview
-          </button>
-          <button
-            type="submit"
-            style={{ flex: "1", padding: "15px", backgroundColor: "#007bff", color: "white", border: "none", borderRadius: "6px", fontSize: "16px", fontWeight: "bold" }}
-          >
-            💾 Simpan Kwitansi
-          </button>
+      </div>
+      {/* Hidden print content */}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0 }} aria-hidden="true">
+        <div ref={printRef}>
+          <ReceiptDocument data={previewData} />
         </div>
-      </form>
+      </div>
+      {showPreview && (
+        <PreviewModal data={previewData} onClose={() => setShowPreview(false)} />
+      )}
     </div>
   );
 }
+
+function EyeIcon({ className = "me-1" }) { return (<svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" /><circle cx="12" cy="12" r="3" fill="currentColor" /></svg>); }
+function DownloadIcon({ className = "me-1" }) { return (<svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>); }
+function PrinterIcon({ className = "me-1" }) { return (<svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9V2h12v7" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M6 14h12v8H6z" /><path d="M18 18H6" /></svg>); }
 
 export default KwitansiBarang;

@@ -14,9 +14,13 @@ export default function Header(){
   };
 
   const isActive = (pathPrefix) => location.pathname === pathPrefix || location.pathname.startsWith(pathPrefix + '/');
+  const handleCreateNav = (e, path) => {
+    // Tanpa konfirmasi apapun: bersihkan flag dirty dan biarkan Link melakukan navigasi
+    try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
+  };
 
   return (
-  <nav className="navbar navbar-expand-lg sticky-top shadow-sm" style={{background:'#8f8f96'}}>
+  <nav className="navbar navbar-expand-lg sticky-top shadow-sm" style={{background:'#8f8f96', zIndex: 1200}}>
       <div className="container-fluid">
         <div className="d-flex align-items-center gap-3">
           <LogoCircle />
@@ -39,9 +43,9 @@ export default function Header(){
               </button>
               <ul className="dropdown-menu" aria-labelledby="createDropdown">
                 <li><span className="dropdown-header text-uppercase small fw-semibold">Jenis</span></li>
-                <li><Link className="dropdown-item small" to="/kwitansi/honor">Kwitansi Honor</Link></li>
-                <li><Link className="dropdown-item small" to="/kwitansi/jasa">Kwitansi Jasa</Link></li>
-                <li><Link className="dropdown-item small" to="/kwitansi/barang">Kwitansi Barang</Link></li>
+                <li><Link className="dropdown-item small" to="/kwitansi/honor" onClick={(e)=>handleCreateNav(e,'/kwitansi/honor')}>Kwitansi Honor</Link></li>
+                <li><Link className="dropdown-item small" to="/kwitansi/jasa" onClick={(e)=>handleCreateNav(e,'/kwitansi/jasa')}>Kwitansi Jasa</Link></li>
+                <li><Link className="dropdown-item small" to="/kwitansi/barang" onClick={(e)=>handleCreateNav(e,'/kwitansi/barang')}>Kwitansi Barang</Link></li>
               </ul>
             </li>
             <li className="nav-item dropdown me-lg-2">
@@ -61,6 +65,7 @@ export default function Header(){
           </div>
         </div>
       </div>
+      {/* LayoutSettings removed per revert request */}
     </nav>
   );
 }

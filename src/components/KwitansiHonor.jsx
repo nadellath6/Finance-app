@@ -9,10 +9,13 @@ import ReceiptDocument from "./Receipt";
 import { db, auth } from "../firebase";
 import { addDoc, collection, serverTimestamp, updateDoc, doc } from "firebase/firestore";
 import terbilang from "../lib/terbilang";
+import { useToast } from "./ui/ToastProvider";
 
 function KwitansiHonor() {
+  const toast = useToast();
   const location = useLocation();
   const [editId, setEditId] = useState(null);
+  const [editSource, setEditSource] = useState(null);
   // Individual field states (will later refactor to single object if needed)
   const [lembar, setLembar] = useState("");
   const [buktiKas, setBuktiKas] = useState("");
@@ -24,6 +27,7 @@ function KwitansiHonor() {
   const [nota, setNota] = useState(0); // Nota Pembayaran numeric value
   const [pph21, setPph21] = useState(0); // PPH21 numeric value
   const [showPreview, setShowPreview] = useState(false);
+  const [dirtyReady, setDirtyReady] = useState(false);
   // Signature fields
   const [penggunaNama, setPenggunaNama] = useState("");
   const [penggunaNip, setPenggunaNip] = useState("");
@@ -53,6 +57,7 @@ function KwitansiHonor() {
     const st = location?.state;
     if (st?.editId && st?.payload) {
       setEditId(st.editId);
+      setEditSource(st.source || null);
       const p = st.payload;
       setLembar(p.lembar || "");
       setBuktiKas(p.buktiKas || "");
@@ -70,7 +75,42 @@ function KwitansiHonor() {
       setBendaharaNip(sig.bendahara?.nip || "");
       setPenerimaNama(sig.penerima?.nama || "");
     }
+    // Jika tidak ada prefill sama sekali, berarti mode BUAT BARU: reset semua field
+    if (!st?.editId && !st?.payload) {
+      // hentikan pelacakan dirty saat reset agar tidak memicu konfirmasi
+      setDirtyReady(false);
+      setEditId(null);
+      setEditSource(null);
+      setLembar("");
+      setBuktiKas("");
+      setKodeRek("");
+      setTerimaDari("");
+      setUntukPembayaran("");
+      setNota(0);
+      setPph21(0);
+      setPenggunaNama("");
+      setPenggunaNip("");
+      setPptkNama("");
+      setPptkNip("");
+      setBendaharaNama("");
+      setBendaharaNip("");
+      setPenerimaNama("");
+      try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
+      // aktifkan kembali pelacakan dirty pada frame berikutnya
+      setTimeout(() => setDirtyReady(true), 0);
+      return;
+    }
+    // Setelah prefill selesai, aktifkan pelacakan dirty
+    setDirtyReady(true);
   }, [location]);
+  // Jika tidak ada prefill sama sekali, segera aktifkan pelacakan dirty saat mount
+  useEffect(() => { if (!location?.state?.editId && !location?.state?.payload) setDirtyReady(true); }, []);
+
+  // Tandai form kotor saat ada perubahan (setelah ready)
+  useEffect(() => {
+    if (!dirtyReady) return;
+    try { window.localStorage.setItem('kwitansi_dirty','1'); } catch {}
+  }, [dirtyReady, lembar, buktiKas, kodeRek, terimaDari, untukPembayaran, nota, pph21, penggunaNama, penggunaNip, pptkNama, pptkNip, bendaharaNama, bendaharaNip, penerimaNama]);
 
   // helper to format number with thousand separators (no currency sign yet)
   const formatNumber = (val) => {
@@ -174,8 +214,12 @@ function KwitansiHonor() {
           el.classList.add('pdf-noborder');
           // PDF-only: move KWITANSI title up by 5mm
           el.classList.add('pdf-title-up-5');
+          // PDF-only: shift KWITANSI title 2mm to the left
+          el.classList.add('pdf-title-left-2');
           // PDF/PRINT-only: trim bottom padding to remove extra space after copy 2
           el.classList.add('pdf-trim-bottom');
+          // PDF-only: shift the top-right block 10mm to the left
+          el.classList.add('pdf-top-right-left-10');
         });
         await downloadElementAsPdf(printRef.current, {
           filename: 'kwitansi-honor.pdf',
@@ -191,7 +235,9 @@ function KwitansiHonor() {
       el.classList.remove('pdf-sign-gap-15'); // Remove 15mm gap
       el.classList.remove('pdf-noborder');
       el.classList.remove('pdf-title-up-5');
+      el.classList.remove('pdf-title-left-2');
       el.classList.remove('pdf-trim-bottom');
+      el.classList.remove('pdf-top-right-left-10');
         });
       } catch (e) {
         console.error('Failed to generate PDF:', e);
@@ -203,7 +249,9 @@ function KwitansiHonor() {
       el.classList.remove('pdf-sign-gap-15'); // Remove 15mm gap
       el.classList.remove('pdf-noborder');
       el.classList.remove('pdf-title-up-5');
+      el.classList.remove('pdf-title-left-2');
       el.classList.remove('pdf-trim-bottom');
+      el.classList.remove('pdf-top-right-left-10');
         });
       }
     }
@@ -240,16 +288,26 @@ function KwitansiHonor() {
           penerima: { nama: penerimaNama },
         },
       };
+      const uid = auth?.currentUser?.uid;
+      if (!uid) throw new Error('User belum login');
       if (editId) {
-        await updateDoc(doc(db, 'laporan_honor', editId), docData);
+        if (editSource === 'legacy') {
+          await updateDoc(doc(db, 'laporan_honor', editId), docData);
+        } else {
+          await updateDoc(doc(db, 'users', uid, 'laporan_honor', editId), docData);
+        }
         setSaveMsg('Berhasil diperbarui.');
+        toast.success('Data berhasil diperbarui');
       } else {
-        await addDoc(collection(db, 'laporan_honor'), docData);
+        await addDoc(collection(db, 'users', uid, 'laporan_honor'), docData);
         setSaveMsg('Berhasil disimpan ke Laporan Honor.');
+        toast.success('Berhasil disimpan ke Laporan Honor');
       }
+      try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
     } catch (err) {
       console.error('Gagal simpan:', err);
       setSaveMsg('Gagal menyimpan. Periksa koneksi atau coba lagi.');
+      toast.error('Gagal menyimpan. Periksa koneksi atau coba lagi.');
     } finally {
       setSaving(false);
       setTimeout(() => setSaveMsg(""), 4000);
@@ -279,13 +337,13 @@ function KwitansiHonor() {
             {[
               { label: 'Lembar', key: 'lembar', bind: { value: lembar, onChange: (e)=> setLembar(e.target.value) } },
               { label: 'Bukti Kas Nomor', key: 'buktiKas', bind: { value: buktiKas, onChange: (e)=> setBuktiKas(e.target.value) } },
-              { label: 'Kode Rekening*', key: 'kodeRek', bind: { value: kodeRek, onChange: (e)=> setKodeRek(e.target.value) } },
+              { label: 'Kode Rekening', key: 'kodeRek', bind: { value: kodeRek, onChange: (e)=> setKodeRek(e.target.value) } },
               { heading: true, label: 'KWITANSI' },
-              { label: 'Terima Dari*', key: 'terimaDari', bind: { value: terimaDari, onChange: (e)=> setTerimaDari(e.target.value) } },
-              { label: 'Uang Sebanyak*', key: 'uangSebanyak', bind: { value: uangSebanyakAuto } },
-              { label: 'Untuk pembayaran*', key: 'untukPembayaran', bind: { value: untukPembayaran, onChange: (e)=> setUntukPembayaran(e.target.value) } },
+              { label: 'Terima Dari', key: 'terimaDari', bind: { value: terimaDari, onChange: (e)=> setTerimaDari(e.target.value) } },
+              { label: 'Uang Sebanyak', key: 'uangSebanyak', bind: { value: uangSebanyakAuto } },
+              { label: 'Untuk pembayaran', key: 'untukPembayaran', bind: { value: untukPembayaran, onChange: (e)=> setUntukPembayaran(e.target.value) } },
               { label: 'Uraian', noInput: true, key: 'uraian' },
-              { label: 'Nota Pembayaran*', key: 'notaPembayaran', type: 'numberCurrency' },
+              { label: 'Nota Pembayaran', key: 'notaPembayaran', type: 'numberCurrency' },
               { label: 'PPH 21', key: 'pph21', type: 'numberCurrency' },
               { label: 'Jumlah diterimakan', key: 'jumlahDiterimakan', type: 'calculated' }
             ].map((f, idx) => {
