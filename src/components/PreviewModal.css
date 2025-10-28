@@ -1,10 +1,26 @@
+/* Bagian acara: izinkan teks melebar sampai margin, tidak membungkus paksa */
+.acara-block, .acara-block * {
+  overflow-wrap: normal;
+  word-break: normal;
+  max-width: none;
+  white-space: nowrap;
+}
 .preview-overlay { position: fixed; inset:0; background: rgba(0,0,0,0.4); z-index: 2000; display:flex; align-items:flex-start; justify-content:center; padding: 2rem 1rem; overflow:auto; }
 .preview-dialog { background:#fff; border-radius:6px; padding:1rem 1.25rem 2rem; width:auto; max-width:none; display:inline-block; }
 .a4-sheet { width:210mm; height:auto; min-height:calc(297mm + 12mm); max-width:100%; box-sizing:border-box; }
-.doc-frame { background:#fff; border:1px solid #ccc; padding:18mm 16mm 22mm; position:relative; }
-.doc-frame.dual { display:flex; flex-direction:column; gap:34mm; padding:15mm 18mm 18mm; }
+.doc-frame { background:#fff; border:1px solid #ccc; padding:15mm; position:relative; overflow:hidden; }
+.doc-frame, .doc-frame * { box-sizing: border-box; }
+.doc-frame.dual { display:flex; flex-direction:column; gap:34mm; padding:15mm; }
 .spec-layout .receipt-block { position:relative; padding-top:4mm; }
-.top-right-block { position:absolute; top:0; right:-11mm; font-size:9.6pt; width:70mm; }
+.top-right-block {
+  position: absolute;
+  top: 0;
+  right: -10mm;
+  font-size: 9.6pt;
+  width: auto; /* biarkan fleksibel */
+  max-width: calc(100% - 15mm); /* tetap jaga jarak margin kanan */
+  background: #fff;
+}
 .top-right-block .top-meta { width:100%; border-collapse:collapse; }
 .top-right-block .top-meta td { padding:1px 2px; vertical-align:top; }
 .align-right-meta .meta-label { text-align:right; white-space:nowrap; padding-left:4mm; }
@@ -20,8 +36,8 @@
 .meta-dotted { display:inline-block; min-width:48mm; padding:0 2px; text-align:left; }
 .title-center { text-align:center; font-weight:700; margin:19mm 0 6mm; letter-spacing:0.5px; }
 .info-row { display:flex; flex-direction:row; justify-content:space-between; gap:18mm; }
-.receipt-block .info-left { margin-left:-15mm; margin-top:-5mm; }
-.info-left table td { padding:1px 2px; font-size:10pt; }
+.receipt-block .info-left { margin-left:0; margin-top:0; }
+.info-left table td { padding:1px 2px; font-size:10pt; vertical-align:top; }
 .info-left .lbl { white-space:nowrap; }
 .info-left .dotted { border-bottom:none; min-width:55mm; }
 .info-left .uraian-row td { padding-top:10mm; vertical-align:top; }
@@ -75,12 +91,7 @@
 .signature-row .sig-space { height:26mm; }
 
 
-@media print {
-  .spec-layout .receipt-block { padding-top:2mm; }
-  .doc-frame.dual { gap:28mm; }
-  .title-center { margin:5mm 0 8mm; }
-  .signature-row { margin-top:14mm; }
-}
+/* Remove print-specific spacing overrides to keep layout identical to preview */
 .doc-table { width:100%; font-size: 0.85rem; border-collapse:collapse; }
 .doc-table td { padding:4px 6px 4px 0; vertical-align:top; }
 .doc-table td.w-30 { width:32%; }
@@ -93,6 +104,33 @@
 
 @media (max-width: 900px) { .sig-row { flex-wrap:wrap; } .sig-row > div { flex: 1 1 45%; } }
 
+/* Geser seluruh bagian tanda tangan 2mm ke kanan (berlaku preview/print/PDF) */
+  .signature-row { position: relative; left: 2mm; margin-top: 25mm; }
+
+/* Preview only: align top-right meta block with top margin by cancelling receipt padding */
+@media screen {
+  /* Hanya di preview: titik dua di meta-colon vertikal atas untuk baris Terima dari, Sebanyak, dan Untuk pembayaran */
+  .top-right-block .top-meta tr:nth-child(1) .meta-colon, /* Terima dari */
+  .top-right-block .top-meta tr:nth-child(2) .meta-colon, /* Sebanyak */
+  .top-right-block .top-meta tr:nth-child(3) .meta-colon  /* Untuk pembayaran */
+  {
+    vertical-align: top !important;
+  }
+  .top-right-block { top: 0; right: 0mm !important; }
+  /* Garis putus-putus penanda margin 25.4mm di dalam kertas A4 (hanya preview) */
+  .doc-frame::before {
+    content: "";
+    position: absolute;
+    left: 15mm;
+    right: 15mm;
+    top: 15mm;
+    bottom: 15mm;
+    border: 0.3mm dashed rgba(0,0,0,0.35);
+    pointer-events: none;
+    z-index: 2;
+  }
+}
+
 /* Hapus scaling: ukuran A4 tetap asli, kontainer menyesuaikan lebar isi */
 
 /* Screen-only: perkecil tampilan preview tanpa mempengaruhi hasil print/PDF */
@@ -103,14 +141,17 @@
   .preview-dialog { box-shadow:none !important; padding:0; }
   .preview-toolbar, .print-hint, .btn { display:none !important; }
   body { background:#fff !important; }
-  .doc-frame { border:none; padding:0; }
-  /* keep A4 wrapper clean in print */
+  /* keep A4 wrapper clean in print; do not override .doc-frame spacing so it matches preview */
 }
 
 @page { size: A4 portrait; margin: 0; }
 
 /* Dual receipt specific styles */
 .receipt-block { font-family: Arial, sans-serif; font-size:11pt; line-height:1.25; position:relative; }
+
+.receipt-block { overflow-wrap:anywhere; word-break:break-word; hyphens:auto; }
+.receipt-block img, .receipt-block svg { max-width:100%; height:auto; }
+.receipt-block td, .receipt-block th { overflow-wrap:anywhere; word-break:break-word; hyphens:auto; max-width:100%; }
 .title-kwitansi { font-weight:600; font-size:10.5pt; letter-spacing:0.5px; margin-bottom:4mm; }
 .receipt-top-grid { display:grid; grid-template-columns: 42% 16% 42%; column-gap:12px; }
 .tbl-left, .tbl-right, .tbl-mid, .tbl-amt { border-collapse:collapse; font-size:10.2pt; }
@@ -133,12 +174,11 @@
 .sig-nip { font-size:8.6pt; margin-top:2px; }
 
 @media print {
-  .doc-frame.dual { gap:30mm; padding:8mm 14mm 6mm; }
   .receipt-block { page-break-inside:avoid; }
 }
 
-/* Unified font sizing for entire receipt (Arial 11pt) */
-.receipt-block, .receipt-block * { font-size:11pt !important; font-family: Arial, sans-serif !important; }
+/* Unified font sizing for entire receipt (Arial 9pt) */
+.receipt-block, .receipt-block * { font-size:9pt !important; font-family: Arial, sans-serif !important; }
 
 /* PDF-only shift: when generating PDF, temporarily add this class on .doc-frame */
 .doc-frame.pdf-shift { transform: translateY(-10mm); }
@@ -179,19 +219,13 @@
 /* PRINT-only: geser semua isi ke bawah 3mm */
 .doc-frame.print-shift-down-3 { margin-top: 3mm !important; }
 
-/* Print-only: shift the top-right meta block an additional 5mm left from current (-4mm → 1mm) */
-@media print {
-  .top-right-block { right: 10mm !important; }
-}
-
-/* Preview-only: shift top-right block 5mm further left (now at -14mm) */
-.preview-dialog .top-right-block { right: 6mm; }
+/* Use the same top-right position across modes; base rule above sets right: 6mm */
 
 /* PDF-only: when .doc-frame has this class, shift top-right block further 3mm left (now at -4mm) */
 .doc-frame.pdf-top-right-left-10 .top-right-block { right: 6mm !important; }
 
 /* Preview-only: shift KWITANSI title 2mm to the left */
-.preview-dialog .title-center { position: relative; left: -2mm; }
+.preview-dialog .title-center { position: relative; left: -2mm; margin-top: 13mm !important; }
 
 /* Print-only: shift KWITANSI title 2mm to the left */
 @media print {
@@ -201,3 +235,16 @@
 /* (cleanup) removed stray duplicate preview rule6 */
 
 /* (reverted) removed user-adjustable CSS variable overrides */
+
+/* Penerima: naikkan nama 1mm dan hilangkan underline (berlaku preview/print/PDF) */
+.signature-row .sig-col:last-child .sig-name-line {
+  margin-top: 8mm !important; /* sebelumnya 9mm, naik 1mm */
+  text-decoration: none !important; /* hilangkan garis bawah khusus penerima */
+}
+
+/* Preview-only: penerima nama naik lagi 1mm (total 3mm dari base 9mm -> 6mm) */
+@media screen {
+  .signature-row .sig-col:last-child .sig-name-line {
+    margin-top: 6mm !important; /* hanya di preview */
+  }
+}
