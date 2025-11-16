@@ -74,44 +74,75 @@ export default function LaporanBarang(){
     <div className="dashboard-wrapper">
       <Header />
       <div className="container py-3">
-        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-          <h4 className="mb-0">Laporan Barang <small className="text-muted">({rows.length} data)</small></h4>
-          <div className="d-flex flex-wrap align-items-center gap-2">
-            <label className="small mb-0 me-1" htmlFor="lb-page-size">Tampilkan</label>
-            <select id="lb-page-size" className="form-select form-select-sm" style={{ width: 90 }} value={pageSize} onChange={(e)=> setPageSize(Number(e.target.value))}>
-              {[5,10,20,50,100].map(n => (<option key={n} value={n}>{n}</option>))}
-            </select>
-            <input type="text" className="form-control form-control-sm" placeholder="Cari (rek/pembayaran/nama/NIP)" style={{ width: 240 }} value={searchDraft} onChange={(e)=> setSearchDraft(e.target.value)} />
-            <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=> setSearch((searchDraft||'').trim())}>Cari</button>
-            <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=> { setSearch(''); setSearchDraft(''); }}>Reset</button>
-            <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=> navigate('/kwitansi/barang')}>+ Tambah</button>
+        <div className="mb-3 text-center">
+          <h4 className="mb-2">Laporan Barang</h4>
+          <div className="d-flex justify-content-center">
+            <div className="card shadow-sm" style={{ maxWidth: 320 }}>
+              <div className="card-body py-2">
+                <div className="small text-muted">Jumlah Data</div>
+                <div className="fs-5 fw-semibold">{rows.length}</div>
+              </div>
+            </div>
           </div>
+        </div>
+        <div className="d-flex flex-wrap align-items-center justify-content-center gap-2 mb-3">
+          <label className="small mb-0 me-1" htmlFor="lb-page-size">Tampilkan</label>
+          <select id="lb-page-size" className="form-select form-select-sm" style={{ width: 90 }} value={pageSize} onChange={(e)=> setPageSize(Number(e.target.value))}>
+            {[5,10,20,50,100].map(n => (<option key={n} value={n}>{n}</option>))}
+          </select>
+          <input type="text" className="form-control form-control-sm" placeholder="Cari (rek/pembayaran/nama/NIP)" style={{ width: 240 }} value={searchDraft} onChange={(e)=> setSearchDraft(e.target.value)} />
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=> setSearch((searchDraft||'').trim())}>Cari</button>
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=> { setSearch(''); setSearchDraft(''); }}>Reset</button>
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=> navigate('/kwitansi/barang')}>+ Tambah</button>
         </div>
         {loading && <div>Memuat…</div>}
         {error && <div className="text-danger small mb-2">{error}</div>}
         {!loading && !error && (
           <div className="table-responsive">
-            <table className="table table-sm table-bordered align-middle">
-              <thead className="table-light">
+            <table className="table table-sm table-hover table-striped table-bordered mb-0 align-middle">
+              <colgroup>
+                <col style={{ width: '56px' }} /> {/* No */}
+                <col style={{ width: '140px' }} /> {/* No Rek */}
+                <col style={{ width: '400px' }} /> {/* Untuk Pembayaran */}
+                <col style={{ width: '140px' }} /> {/* Nota */}
+                <col style={{ width: '100px' }} /> {/* PPh21 */}
+                <col style={{ width: '100px' }} /> {/* PPh22 */}
+                <col style={{ width: '100px' }} /> {/* PPh23 */}
+                <col style={{ width: '100px' }} /> {/* PPN */}
+                <col style={{ width: '100px' }} /> {/* PAD */}
+                <col style={{ width: '160px' }} /> {/* PA */}
+                <col style={{ width: '140px' }} /> {/* NIP PA */}
+                <col style={{ width: '160px' }} /> {/* PPTK */}
+                <col style={{ width: '140px' }} /> {/* NIP PPTK */}
+                <col style={{ width: '160px' }} /> {/* Bendahara */}
+                <col style={{ width: '140px' }} /> {/* NIP Bendahara */}
+                <col style={{ width: '200px' }} /> {/* Penerima */}
+                <col style={{ width: '120px' }} /> {/* Aksi */}
+              </colgroup>
+              <thead>
                 <tr>
-                  <th style={{width:'40px'}}>No</th>
-                  <th>No Rek</th>
-                  <th>Untuk Pembayaran</th>
-                  <th>Nota</th>
-                  <th>PPH 21</th>
-                  <th>Nama Pengguna Anggaran</th>
-                  <th>NIP Pengguna Anggaran</th>
-                  <th>Nama PPTK</th>
-                  <th>NIP PPTK</th>
-                  <th>Nama Bendahara</th>
-                  <th>NIP Bendahara</th>
-                  <th>Nama Penerima</th>
-                  <th style={{width:'120px'}}>Aksi</th>
+                  <th style={{width:'40px', backgroundColor: '#e9ecef'}}>No</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>No Rek</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>Untuk Pembayaran</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>Nota</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>PPh 21</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>PPh 22</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>PPh 23</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>PPN</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>PAD</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>PA</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>NIP PA</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>PPTK</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>NIP PPTK</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>Bendahara</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>NIP Bendahara</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>Penerima</th>
+                  <th style={{width:'120px', backgroundColor: '#e9ecef'}}>Aksi</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="text-start">
                 {rows.length === 0 && (
-                  <tr><td colSpan={13} className="text-center text-muted">Belum ada data</td></tr>
+                  <tr><td colSpan={17} className="text-center text-muted">Belum ada data</td></tr>
                 )}
                 {(function(){
                   const q = (search||'').toLowerCase();
@@ -127,7 +158,7 @@ export default function LaporanBarang(){
                   const numbered = filtered.map((r, i) => ({ r, nomor: filtered.length - i }));
                   const pageRows = numbered.slice(0, pageSize);
                   if (pageRows.length === 0) {
-                    return (<tr><td colSpan={13} className="text-center text-muted">Tidak ada data yang cocok</td></tr>);
+                    return (<tr><td colSpan={17} className="text-center text-muted">Tidak ada data yang cocok</td></tr>);
                   }
                   return pageRows.map(({ r, nomor }) => {
                     const sig = r.signatures || {};
@@ -139,9 +170,13 @@ export default function LaporanBarang(){
                       <tr key={r.id}>
                         <td>{nomor}</td>
                         <td>{r.kodeRek || '-'}</td>
-                        <td>{r.untukPembayaran || '-'}</td>
-                        <td className="text-end">{r.notaPembayaran ? formatNumberID(r.notaPembayaran) : ''}</td>
-                        <td className="text-end">{r.pph21 ? formatNumberID(r.pph21) : ''}</td>
+                        <td className="text-wrap" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.untukPembayaran || '-'}</td>
+                        <td>{r.notaPembayaran ? formatNumberID(r.notaPembayaran) : ''}</td>
+                        <td>{r.pph21 ? formatNumberID(r.pph21) : ''}</td>
+                        <td>{r.pph22 ? formatNumberID(r.pph22) : ''}</td>
+                        <td>{r.pph23 ? formatNumberID(r.pph23) : ''}</td>
+                        <td>{r.ppn ? formatNumberID(r.ppn) : ''}</td>
+                        <td>{r.pad ? formatNumberID(r.pad) : ''}</td>
                         <td>{pengguna.nama || '-'}</td>
                         <td>{pengguna.nip || '-'}</td>
                         <td>{pptk.nama || '-'}</td>
@@ -151,8 +186,8 @@ export default function LaporanBarang(){
                         <td>{penerima.nama || '-'}</td>
                         <td>
                           <div className="btn-group btn-group-sm" role="group">
-                            <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => handleEdit(r)}>Edit</button>
-                            <button type="button" className="btn btn-outline-danger btn-sm" disabled={deletingId===r.id} onClick={() => handleDelete(r)}>
+                            <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => handleEdit(r)}>Edit</button>
+                            <button type="button" className="btn btn-outline-secondary btn-sm" disabled={deletingId===r.id} onClick={() => handleDelete(r)}>
                               {deletingId===r.id ? 'Menghapus…' : 'Hapus'}
                             </button>
                           </div>

@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './PreviewModal.css';
+import { useToast } from './ui/ToastProvider.jsx';
+import { useNavigate } from 'react-router-dom';
 
 // Format number with Indonesian thousands separators and 2 decimal places (",00")
 const formatCurrency = (val) => {
@@ -8,11 +10,94 @@ const formatCurrency = (val) => {
 };
 
 function ReceiptBlock({ index, data }) {
-  const { lembar, buktiKas, kodeRek, terimaDari, uangSebanyak, untukPembayaran, notaPembayaran, pph21, jumlahDiterimakan, tanggal, lokasi = 'Nganjuk,', penerimaNama,
+  const { lembar, buktiKas, kodeRek, terimaDari, uangSebanyak, untukPembayaran, notaPembayaran,
+    pph21 = 0, pph22 = 0, pph23 = 0, ppn = 0, pad = 0,
+    jumlahDiterimakan, tanggal, lokasi = 'Nganjuk,', penerimaNama,
     penggunaNama, penggunaNip, pptkNama, pptkNip, bendaharaNama, bendaharaNip } = data;
 
+  const toast = useToast();
+  const [unsavedChanges, setUnsavedChanges] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [nextHref, setNextHref] = useState(null);
+  const navigate = useNavigate();
+
+  const handleInputChange = (e) => {
+    // Update state and mark as unsaved
+    setUnsavedChanges(true);
+    // ...existing code for handling input changes...
+  };
+
+  const handleSave = () => {
+    // Save logic
+    setUnsavedChanges(false);
+    // ...existing code for saving...
+  };
+
+  // Tampilkan toast peringatan hanya saat mengedit kwitansi yang sudah ada (memiliki id)
+  useEffect(() => {
+    if (unsavedChanges && data.id) {
+      const id = toast.info('Anda belum menyimpan perubahan. Simpan sekarang?', {
+        title: 'Perubahan Belum Disimpan',
+        duration: 0,
+      });
+      return () => toast.remove(id);
+    }
+  }, [unsavedChanges, toast, data.id]);
+
+  // Cegah keluar/refresh tab browser saat ada perubahan belum disimpan
+  useEffect(() => {
+    if (!unsavedChanges) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [unsavedChanges]);
+
+  // Intersep klik Link internal saat ada perubahan belum disimpan (tanpa useBlocker)
+  useEffect(() => {
+    if (!(unsavedChanges && index === 0)) return;
+    const onClick = (e) => {
+      // cari elemen anchor terdekat
+      let el = e.target;
+      while (el && el !== document && el.tagName !== 'A') el = el.parentElement;
+      if (!el || el.tagName !== 'A') return;
+      const href = el.getAttribute('href');
+      const target = el.getAttribute('target');
+      // abaikan jika modifier keys atau target _blank
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (!href || href.startsWith('http') || target === '_blank') return;
+      // abaikan anchor hash
+      if (href.startsWith('#')) return;
+      // cegah navigasi dan tampilkan modal
+      e.preventDefault();
+      setNextHref(href);
+      setShowConfirm(true);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [unsavedChanges, index]);
+
+  const handleConfirmSave = async () => {
+    try {
+      await Promise.resolve(handleSave());
+    } finally {
+      const dest = nextHref;
+      setShowConfirm(false);
+      setNextHref(null);
+      if (dest) navigate(dest);
+    }
+  };
+
+  const handleCancelLeave = () => {
+    setShowConfirm(false);
+    setNextHref(null);
+  };
+
   return (
-    <div className="receipt-block" data-copy={index + 1}>
+    <>
+      <div className="receipt-block" data-copy={index + 1}>
       <div className="top-right-block">
         <table className="top-meta meta-like-amount meta-colon-layout">
           <tbody>
@@ -53,12 +138,46 @@ function ReceiptBlock({ index, data }) {
                         <td className="acurrency">{notaPembayaran ? 'Rp' : ''}</td>
                         <td className="aval value condensed-val">{notaPembayaran ? formatCurrency(notaPembayaran) : ''}</td>
                       </tr>
-                      <tr className="amt-row">
-                        <td className="albl">PPh 21</td>
-                        <td className="acolon">:</td>
-                        <td className="acurrency">{pph21 ? 'Rp' : ''}</td>
-                        <td className="aval value condensed-val">{pph21 ? formatCurrency(pph21) : ''}</td>
-                      </tr>
+                      {pph21 ? (
+                        <tr className="amt-row">
+                          <td className="albl">PPh 21</td>
+                          <td className="acolon">:</td>
+                          <td className="acurrency">Rp</td>
+                          <td className="aval value condensed-val">{formatCurrency(pph21)}</td>
+                        </tr>
+                      ) : null}
+                      {pph22 ? (
+                        <tr className="amt-row">
+                          <td className="albl">PPh 22</td>
+                          <td className="acolon">:</td>
+                          <td className="acurrency">Rp</td>
+                          <td className="aval value condensed-val">{formatCurrency(pph22)}</td>
+                        </tr>
+                      ) : null}
+                      {pph23 ? (
+                        <tr className="amt-row">
+                          <td className="albl">PPh 23</td>
+                          <td className="acolon">:</td>
+                          <td className="acurrency">Rp</td>
+                          <td className="aval value condensed-val">{formatCurrency(pph23)}</td>
+                        </tr>
+                      ) : null}
+                      {ppn ? (
+                        <tr className="amt-row">
+                          <td className="albl">PPN</td>
+                          <td className="acolon">:</td>
+                          <td className="acurrency">Rp</td>
+                          <td className="aval value condensed-val">{formatCurrency(ppn)}</td>
+                        </tr>
+                      ) : null}
+                      {pad ? (
+                        <tr className="amt-row">
+                          <td className="albl">PAD</td>
+                          <td className="acolon">:</td>
+                          <td className="acurrency">Rp</td>
+                          <td className="aval value condensed-val">{formatCurrency(pad)}</td>
+                        </tr>
+                      ) : null}
                       <tr className="amt-row total">
                         <td className="albl">Jumlah Diterimakan</td>
                         <td className="acolon">:</td>
@@ -102,7 +221,33 @@ function ReceiptBlock({ index, data }) {
           <div className="sig-nip">{/* no NIP for Penerima */}</div>
         </div>
       </div>
-    </div>
+
+      {/* penutup wrapper receipt-block */}
+      </div>
+
+      {index === 0 && showConfirm ? (
+        <>
+          <div className="modal-backdrop show"></div>
+          <div className="modal d-block" tabIndex="-1" role="dialog" aria-modal="true">
+            <div className="modal-dialog modal-dialog-centered" role="document">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Perubahan Belum Disimpan</h5>
+                  <button type="button" className="btn-close" aria-label="Tutup" onClick={handleCancelLeave}></button>
+                </div>
+                <div className="modal-body">
+                  <p>Apakah Anda tidak menyimpan kwitansi? Tinggalkan halaman tanpa menyimpan?</p>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={handleCancelLeave}>Tidak</button>
+                  <button type="button" className="btn btn-primary" onClick={handleConfirmSave}>Simpan</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
+    </>
   );
 }
 

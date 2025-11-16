@@ -1,12 +1,37 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { auth } from "../../firebase";
-import { signOut } from "firebase/auth";
+import { auth, db } from "../../firebase";
+import { signOut, onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import instansiAsset from "../../assets/instansi - logo.png";
 
 export default function Header(){
   const navigate = useNavigate();
   const location = useLocation();
+  const [userRole, setUserRole] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const role = userDoc.data().role;
+            console.log("User role loaded:", role, "Email:", user.email);
+            setUserRole(role);
+          } else {
+            console.log("User document not found in Firestore");
+          }
+        } catch (error) {
+          console.error("Error fetching user role:", error);
+        }
+      } else {
+        setUserRole(null);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     navigate("/login");
@@ -59,6 +84,11 @@ export default function Header(){
                 <li><Link className="dropdown-item small" to="/laporan/barang">Laporan Barang</Link></li>
               </ul>
             </li>
+            {userRole === 'admin' && (
+              <li className="nav-item me-lg-2">
+                <Link to="/admin/users" className={`nav-link nav-main ${isActive('/admin/users') ? 'active fw-semibold text-white' : 'text-light'}`}>Manajemen Pengguna</Link>
+              </li>
+            )}
           </ul>
           <div className="d-flex pt-3 pt-lg-0">
             <button className="btn btn-sm btn-outline-light fw-semibold" onClick={handleLogout}>Logout</button>

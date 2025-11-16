@@ -10,7 +10,9 @@ const formatCurrency = (val) => {
 };
 
 function ReceiptBlock({ index, data }) {
-  const { lembar, buktiKas, kodeRek, terimaDari, uangSebanyak, untukPembayaran, notaPembayaran, pph21, jumlahDiterimakan, tanggal, lokasi = 'Nganjuk,', penerimaNama,
+  const { lembar, buktiKas, kodeRek, terimaDari, uangSebanyak, untukPembayaran, notaPembayaran,
+    pph21 = 0, pph22 = 0, pph23 = 0, ppn = 0, pad = 0,
+    jumlahDiterimakan, tanggal, lokasi = 'Nganjuk,', penerimaNama,
     penggunaNama, penggunaNip, pptkNama, pptkNip, bendaharaNama, bendaharaNip } = data;
 
   return (
@@ -58,12 +60,46 @@ function ReceiptBlock({ index, data }) {
                         <td className="acurrency">{notaPembayaran ? 'Rp' : ''}</td>
                         <td className="aval value condensed-val">{notaPembayaran ? formatCurrency(notaPembayaran) : ''}</td>
                       </tr>
-                      <tr className="amt-row">
-                        <td className="albl">PPh 21</td>
-                        <td className="acolon">:</td>
-                        <td className="acurrency">{pph21 ? 'Rp' : ''}</td>
-                        <td className="aval value condensed-val">{pph21 ? formatCurrency(pph21) : ''}</td>
-                      </tr>
+                      {pph21 ? (
+                        <tr className="amt-row">
+                          <td className="albl">PPh 21</td>
+                          <td className="acolon">:</td>
+                          <td className="acurrency">Rp</td>
+                          <td className="aval value condensed-val">{formatCurrency(pph21)}</td>
+                        </tr>
+                      ) : null}
+                      {pph22 ? (
+                        <tr className="amt-row">
+                          <td className="albl">PPh 22</td>
+                          <td className="acolon">:</td>
+                          <td className="acurrency">Rp</td>
+                          <td className="aval value condensed-val">{formatCurrency(pph22)}</td>
+                        </tr>
+                      ) : null}
+                      {pph23 ? (
+                        <tr className="amt-row">
+                          <td className="albl">PPh 23</td>
+                          <td className="acolon">:</td>
+                          <td className="acurrency">Rp</td>
+                          <td className="aval value condensed-val">{formatCurrency(pph23)}</td>
+                        </tr>
+                      ) : null}
+                      {ppn ? (
+                        <tr className="amt-row">
+                          <td className="albl">PPN</td>
+                          <td className="acolon">:</td>
+                          <td className="acurrency">Rp</td>
+                          <td className="aval value condensed-val">{formatCurrency(ppn)}</td>
+                        </tr>
+                      ) : null}
+                      {pad ? (
+                        <tr className="amt-row">
+                          <td className="albl">PAD</td>
+                          <td className="acolon">:</td>
+                          <td className="acurrency">Rp</td>
+                          <td className="aval value condensed-val">{formatCurrency(pad)}</td>
+                        </tr>
+                      ) : null}
                       <tr className="amt-row total">
                         <td className="albl">Jumlah Diterimakan</td>
                         <td className="acolon">:</td>

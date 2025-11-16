@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import PreviewModal from "./PreviewModal";
 import Header from "./layout/Header";
 import "./KwitansiHonor.css"; // will trim after Bootstrap migration
@@ -14,6 +14,7 @@ import { useToast } from "./ui/ToastProvider";
 function KwitansiHonor() {
   const toast = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
   const [editId, setEditId] = useState(null);
   const [editSource, setEditSource] = useState(null);
   // Individual field states (will later refactor to single object if needed)
@@ -25,9 +26,17 @@ function KwitansiHonor() {
   const [untukPembayaran, setUntukPembayaran] = useState("");
   const [uraian] = useState(""); // no input currently per requirements
   const [nota, setNota] = useState(0); // Nota Pembayaran numeric value
-  const [pph21, setPph21] = useState(0); // PPH21 numeric value
+  // Tax rates (%) for auto-calculation
+  const [pph21Rate, setPph21Rate] = useState(0);
+  const [pph22Rate, setPph22Rate] = useState(0);
+  const [pph23Rate, setPph23Rate] = useState(0);
+  const [ppnRate, setPpnRate] = useState(0);
+  const [padRate, setPadRate] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
   const [dirtyReady, setDirtyReady] = useState(false);
+  const [unsaved, setUnsaved] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [nextHref, setNextHref] = useState(null);
   // Signature fields
   const [penggunaNama, setPenggunaNama] = useState("");
   const [penggunaNip, setPenggunaNip] = useState("");
@@ -37,20 +46,23 @@ function KwitansiHonor() {
   const [bendaharaNip, setBendaharaNip] = useState("");
   const [penerimaNama, setPenerimaNama] = useState("");
   const notaNumber = Number(nota) || 0;
-  const pphNumber = Number(pph21) || 0;
-  const pphEnabled = notaNumber > 1000000; // enable only if > 1,000,000
-  // Revised per user: Jumlah Diterimakan = Nota Pembayaran + PPH21 (bukan dikurang)
-  const jumlahDiterimakan = notaNumber + (pphEnabled ? pphNumber : 0);
+  const pph21Amount = Math.round(notaNumber * (Number(pph21Rate)||0) / 100);
+  const pph22Amount = Math.round(notaNumber * (Number(pph22Rate)||0) / 100);
+  const pph23Amount = Math.round(notaNumber * (Number(pph23Rate)||0) / 100);
+  const ppnAmount = Math.round(notaNumber * (Number(ppnRate)||0) / 100);
+  const padAmount = Math.round(notaNumber * (Number(padRate)||0) / 100);
+  // Jumlah Diterimakan = Nota Pembayaran dikurangi seluruh pajak yang diinput (PPh21 selalu bisa dipakai)
+  const jumlahDiterimakan = notaNumber - (pph21Amount + pph22Amount + pph23Amount + ppnAmount + padAmount);
 
   // Auto-convert jumlah diterimakan to words for "Uang Sebanyak"
   const uangSebanyakAuto = jumlahDiterimakan ? `${terbilang(jumlahDiterimakan)} Rupiah` : "";
 
   // Reset PPH21 when nota becomes 0 (user request)
   useEffect(() => {
-    if (notaNumber === 0 && pph21 !== 0) {
-      setPph21(0);
+    if (notaNumber === 0) {
+      setPph21Rate(0); setPph22Rate(0); setPph23Rate(0); setPpnRate(0); setPadRate(0);
     }
-  }, [notaNumber, pph21]);
+  }, [notaNumber]);
 
   // Prefill when navigating from LaporanHonor (Edit)
   useEffect(() => {
@@ -64,8 +76,15 @@ function KwitansiHonor() {
       setKodeRek(p.kodeRek || "");
       setTerimaDari(p.terimaDari || "");
       setUntukPembayaran(p.untukPembayaran || "");
-      setNota(Number(p.notaPembayaran) || 0);
-      setPph21(Number(p.pph21) || 0);
+  setNota(Number(p.notaPembayaran) || 0);
+  // Prefill tax rates if available; infer from stored amounts
+  const _nota = Number(p.notaPembayaran) || 0;
+  const infer = (amt) => (_nota>0 ? Math.round((Number(amt||0)/_nota)*10000)/100 : 0);
+  setPph21Rate(Number(p.pph21Rate ?? infer(p.pph21)) || 0);
+  setPph22Rate(Number(p.pph22Rate ?? infer(p.pph22)) || 0);
+  setPph23Rate(Number(p.pph23Rate ?? infer(p.pph23)) || 0);
+  setPpnRate(Number(p.ppnRate ?? infer(p.ppn)) || 0);
+  setPadRate(Number(p.padRate ?? infer(p.pad)) || 0);
       const sig = p.signatures || {};
       setPenggunaNama(sig.pengguna?.nama || "");
       setPenggunaNip(sig.pengguna?.nip || "");
@@ -86,8 +105,8 @@ function KwitansiHonor() {
       setKodeRek("");
       setTerimaDari("");
       setUntukPembayaran("");
-      setNota(0);
-      setPph21(0);
+  setNota(0);
+  setPph21Rate(0); setPph22Rate(0); setPph23Rate(0); setPpnRate(0); setPadRate(0);
       setPenggunaNama("");
       setPenggunaNip("");
       setPptkNama("");
@@ -109,8 +128,62 @@ function KwitansiHonor() {
   // Tandai form kotor saat ada perubahan (setelah ready)
   useEffect(() => {
     if (!dirtyReady) return;
-    try { window.localStorage.setItem('kwitansi_dirty','1'); } catch {}
-  }, [dirtyReady, lembar, buktiKas, kodeRek, terimaDari, untukPembayaran, nota, pph21, penggunaNama, penggunaNip, pptkNama, pptkNip, bendaharaNama, bendaharaNip, penerimaNama]);
+    // Cek apakah ada data terisi (tidak kosong)
+    const hasData = 
+      (lembar && lembar.trim()) ||
+      (buktiKas && buktiKas.trim()) ||
+      (kodeRek && kodeRek.trim()) ||
+      (terimaDari && terimaDari.trim()) ||
+      (untukPembayaran && untukPembayaran.trim()) ||
+      notaNumber > 0 ||
+      pph21Rate > 0 || pph22Rate > 0 || pph23Rate > 0 || ppnRate > 0 || padRate > 0 ||
+      (penggunaNama && penggunaNama.trim()) ||
+      (penggunaNip && penggunaNip.trim()) ||
+      (pptkNama && pptkNama.trim()) ||
+      (pptkNip && pptkNip.trim()) ||
+      (bendaharaNama && bendaharaNama.trim()) ||
+      (bendaharaNip && bendaharaNip.trim()) ||
+      (penerimaNama && penerimaNama.trim());
+    
+    if (hasData) {
+      setUnsaved(true);
+      try { window.localStorage.setItem('kwitansi_dirty','1'); } catch {}
+    } else {
+      setUnsaved(false);
+      try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
+    }
+  }, [dirtyReady, lembar, buktiKas, kodeRek, terimaDari, untukPembayaran, nota, pph21Rate, pph22Rate, pph23Rate, ppnRate, padRate, penggunaNama, penggunaNip, pptkNama, pptkNip, bendaharaNama, bendaharaNip, penerimaNama]);
+
+  // Peringatan saat refresh/close tab (native beforeunload)
+  useEffect(() => {
+    if (!unsaved) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [unsaved]);
+
+  // Intersep klik Link internal (SPA) bila ada perubahan belum disimpan
+  useEffect(() => {
+    if (!unsaved) return;
+    const onClick = (e) => {
+      let el = e.target;
+      while (el && el !== document && el.tagName !== 'A') el = el.parentElement;
+      if (!el || el.tagName !== 'A') return;
+      const href = el.getAttribute('href');
+      const target = el.getAttribute('target');
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (!href || href.startsWith('http') || target === '_blank') return;
+      if (href.startsWith('#')) return;
+      e.preventDefault();
+      setNextHref(href);
+      setConfirmOpen(true);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [unsaved]);
 
   // helper to format number with thousand separators (no currency sign yet)
   const formatNumber = (val) => {
@@ -134,7 +207,11 @@ function KwitansiHonor() {
     untukPembayaran,
     uraian,
     notaPembayaran: notaNumber,
-    pph21: pphEnabled ? pphNumber : 0,
+  pph21: pph21Amount,
+  pph22: pph22Amount,
+  pph23: pph23Amount,
+  ppn: ppnAmount,
+  pad: padAmount,
     jumlahDiterimakan,
     tanggal: new Date().toLocaleDateString('id-ID'),
     // pass signature values to preview
@@ -214,6 +291,8 @@ function KwitansiHonor() {
           el.classList.add('pdf-noborder');
           // PDF-only: move KWITANSI title up by 5mm
           el.classList.add('pdf-title-up-5');
+          // PDF-only: bring title down by 5mm relative to print (net +5mm vs base)
+          el.classList.add('pdf-title-down-5');
           // PDF-only: shift KWITANSI title 2mm to the left
           el.classList.add('pdf-title-left-2');
           // PDF/PRINT-only: trim bottom padding to remove extra space after copy 2
@@ -235,6 +314,7 @@ function KwitansiHonor() {
       el.classList.remove('pdf-sign-gap-15'); // Remove 15mm gap
       el.classList.remove('pdf-noborder');
       el.classList.remove('pdf-title-up-5');
+      el.classList.remove('pdf-title-down-5');
       el.classList.remove('pdf-title-left-2');
       el.classList.remove('pdf-trim-bottom');
       el.classList.remove('pdf-top-right-left-10');
@@ -249,6 +329,7 @@ function KwitansiHonor() {
       el.classList.remove('pdf-sign-gap-15'); // Remove 15mm gap
       el.classList.remove('pdf-noborder');
       el.classList.remove('pdf-title-up-5');
+      el.classList.remove('pdf-title-down-5');
       el.classList.remove('pdf-title-left-2');
       el.classList.remove('pdf-trim-bottom');
       el.classList.remove('pdf-top-right-left-10');
@@ -261,6 +342,14 @@ function KwitansiHonor() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
   const handleSave = async () => {
+    // Validasi: Terima Dari, Nota Pembayaran, dan Uang Sebanyak (jumlah diterimakan) wajib terisi
+    const missingTerima = !String(terimaDari || '').trim();
+    const missingNota = !(notaNumber > 0);
+    const missingUangSebanyak = !(jumlahDiterimakan > 0);
+    if (missingTerima || missingNota || missingUangSebanyak) {
+      toast.error('Kwitansi tidak dapat disimpan. Lengkapi Terima Dari, Uang Sebanyak, dan Nota Pembayaran terlebih dahulu.', { title: 'Tidak dapat disimpan' });
+      return;
+    }
     setSaveMsg("");
     setSaving(true);
     try {
@@ -277,8 +366,13 @@ function KwitansiHonor() {
         uangSebanyak,
         untukPembayaran,
         uraian,
-        notaPembayaran: notaNumber,
-        pph21: pphEnabled ? pphNumber : 0,
+  notaPembayaran: notaNumber,
+  pph21: pph21Amount,
+  pph22: pph22Amount,
+  pph23: pph23Amount,
+  ppn: ppnAmount,
+  pad: padAmount,
+  pph21Rate, pph22Rate, pph23Rate, ppnRate, padRate,
         jumlahDiterimakan,
         tanggal: new Date().toISOString(),
         signatures: {
@@ -302,8 +396,29 @@ function KwitansiHonor() {
         await addDoc(collection(db, 'users', uid, 'laporan_honor'), docData);
         setSaveMsg('Berhasil disimpan ke Laporan Honor.');
         toast.success('Berhasil disimpan ke Laporan Honor');
+        
+        // Reset semua field setelah save berhasil (hanya untuk data baru)
+        setLembar("");
+        setBuktiKas("");
+        setKodeRek("");
+        setTerimaDari("");
+        setUntukPembayaran("");
+        setNota(0);
+        setPph21Rate(0);
+        setPph22Rate(0);
+        setPph23Rate(0);
+        setPpnRate(0);
+        setPadRate(0);
+        setPenggunaNama("");
+        setPenggunaNip("");
+        setPptkNama("");
+        setPptkNip("");
+        setBendaharaNama("");
+        setBendaharaNip("");
+        setPenerimaNama("");
       }
       try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
+      setUnsaved(false);
     } catch (err) {
       console.error('Gagal simpan:', err);
       setSaveMsg('Gagal menyimpan. Periksa koneksi atau coba lagi.');
@@ -312,6 +427,44 @@ function KwitansiHonor() {
       setSaving(false);
       setTimeout(() => setSaveMsg(""), 4000);
     }
+  };
+
+  const handleConfirmProceedSave = async () => {
+    // Validasi dulu sebelum simpan
+    const missingTerima = !String(terimaDari || '').trim();
+    const missingNota = !(notaNumber > 0);
+    const missingUangSebanyak = !(jumlahDiterimakan > 0);
+    
+    if (missingTerima || missingNota || missingUangSebanyak) {
+      // Tampilkan error dan biarkan popup tetap terbuka
+      toast.error('Kwitansi tidak dapat disimpan. Lengkapi Terima Dari, Nota Pembayaran, dan Uang Sebanyak terlebih dahulu.', { title: 'Tidak dapat disimpan' });
+      return; // Jangan tutup popup, jangan navigasi
+    }
+
+    setSaving(true);
+    try {
+      await handleSave();
+      // Simpan berhasil, lanjut navigasi
+      const href = nextHref;
+      setConfirmOpen(false);
+      setNextHref(null);
+      setUnsaved(false);
+      if (href) navigate(href);
+    } catch (err) {
+      // Gagal simpan, popup tetap terbuka
+      console.error('Gagal simpan dari popup:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmCancel = () => {
+    // Tidak simpan, langsung lanjut navigasi
+    const href = nextHref;
+    setConfirmOpen(false);
+    setNextHref(null);
+    setUnsaved(false); // reset flag agar tidak loop
+    if (href) navigate(href);
   };
 
   return (
@@ -344,7 +497,11 @@ function KwitansiHonor() {
               { label: 'Untuk pembayaran', key: 'untukPembayaran', bind: { value: untukPembayaran, onChange: (e)=> setUntukPembayaran(e.target.value) } },
               { label: 'Uraian', noInput: true, key: 'uraian' },
               { label: 'Nota Pembayaran', key: 'notaPembayaran', type: 'numberCurrency' },
-              { label: 'PPH 21', key: 'pph21', type: 'numberCurrency' },
+              { label: 'PPh 21', key: 'pph21', type: 'tax' },
+              { label: 'PPh 22', key: 'pph22', type: 'tax' },
+              { label: 'PPh 23', key: 'pph23', type: 'tax' },
+              { label: 'PPN', key: 'ppn', type: 'tax' },
+              { label: 'PAD', key: 'pad', type: 'tax' },
               { label: 'Jumlah diterimakan', key: 'jumlahDiterimakan', type: 'calculated' }
             ].map((f, idx) => {
               if (f.heading) {
@@ -368,14 +525,46 @@ function KwitansiHonor() {
                         placeholder="0"
                       />
                     )}
-                    {!f.noInput && f.type === 'numberCurrency' && f.key === 'pph21' && (
-                      <input
-                        className={`form-control form-control-sm ${!pphEnabled ? 'kw-readonly' : ''}`}
-                        value={pphEnabled ? (pph21 === 0 ? '' : formatNumber(pphNumber)) : ''}
-                        onChange={(e) => setPph21(parseNumeric(e.target.value))}
-                        inputMode="numeric"
-                        disabled={!pphEnabled}
-                      />
+                    {!f.noInput && f.type === 'tax' && (
+                      <div className="d-flex justify-content-end align-items-center gap-2 flex-wrap">
+                        <div className="d-flex align-items-center" style={{ maxWidth: '110px' }}>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm text-end"
+                            min="0"
+                            step="0.5"
+                            value={{
+                              pph21: pph21Rate,
+                              pph22: pph22Rate,
+                              pph23: pph23Rate,
+                              ppn: ppnRate,
+                              pad: padRate
+                            }[f.key]}
+                            onChange={(e)=>{
+                              const val = Number(e.target.value) || 0;
+                              if (f.key==='pph21') setPph21Rate(val);
+                              else if (f.key==='pph22') setPph22Rate(val);
+                              else if (f.key==='pph23') setPph23Rate(val);
+                              else if (f.key==='ppn') setPpnRate(val);
+                              else if (f.key==='pad') setPadRate(val);
+                            }}
+                            
+                          />
+                          <span className="ms-1 small">%</span>
+                        </div>
+                        <input
+                          className={`form-control form-control-sm text-end kw-readonly`}
+                          readOnly
+                          style={{ maxWidth: '140px' }}
+                          value={
+                            f.key==='pph21' ? (pph21Amount ? formatNumber(pph21Amount) : '') :
+                            f.key==='pph22' ? (pph22Amount ? formatNumber(pph22Amount) : '') :
+                            f.key==='pph23' ? (pph23Amount ? formatNumber(pph23Amount) : '') :
+                            f.key==='ppn' ? (ppnAmount ? formatNumber(ppnAmount) : '') :
+                            f.key==='pad' ? (padAmount ? formatNumber(padAmount) : '') : ''
+                          }
+                        />
+                      </div>
                     )}
                     {!f.noInput && f.type === 'calculated' && f.key === 'jumlahDiterimakan' && (
                       <input
@@ -468,6 +657,30 @@ function KwitansiHonor() {
       </div>
       {showPreview && (
         <PreviewModal data={previewData} onClose={() => setShowPreview(false)} />
+      )}
+
+      {/* Modal konfirmasi simpan perubahan */}
+      {confirmOpen && (
+        <>
+          <div className="modal-backdrop show"></div>
+          <div className="modal d-block" tabIndex="-1" role="dialog" aria-modal="true">
+            <div className="modal-dialog modal-dialog-centered" role="document" style={{maxWidth: '320px', width: '320px'}}>
+              <div className="modal-content" style={{borderRadius: '8px'}}>
+                <div className="modal-header" style={{backgroundColor: '#f8f9fa', borderBottom: '1px solid #dee2e6', padding: '12px 16px'}}>
+                  <h5 className="modal-title" style={{color: '#495057', fontSize: '1rem'}}>Save Changes?</h5>
+                  <button type="button" className="btn-close" aria-label="Close" onClick={handleConfirmCancel} style={{fontSize: '0.75rem'}}></button>
+                </div>
+                <div className="modal-body" style={{backgroundColor: '#fff', color: '#212529', padding: '20px 16px', textAlign: 'center'}}>
+                  <p style={{margin: 0, fontSize: '0.9rem'}}>Do you want to save your changes?</p>
+                </div>
+                <div className="modal-footer" style={{backgroundColor: '#f8f9fa', borderTop: '1px solid #dee2e6', padding: '12px 16px', justifyContent: 'center', gap: '10px'}}>
+                  <button type="button" className="btn" style={{backgroundColor: '#6c757d', color: '#fff', border: 'none', padding: '8px 24px', fontSize: '0.9rem'}} onClick={handleConfirmCancel}>No</button>
+                  <button type="button" className="btn" style={{backgroundColor: '#495057', color: '#fff', border: 'none', padding: '8px 24px', fontSize: '0.9rem'}} onClick={handleConfirmProceedSave}>Yes</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -26,7 +26,12 @@ function KwitansiJasa() {
   const [untukPembayaran, setUntukPembayaran] = useState("");
   const [uraian] = useState("");
   const [nota, setNota] = useState(0);
-  const [pph21, setPph21] = useState(0);
+  // Tax rates (%) and computed amounts
+  const [pph21Rate, setPph21Rate] = useState(0);
+  const [pph22Rate, setPph22Rate] = useState(0);
+  const [pph23Rate, setPph23Rate] = useState(0);
+  const [ppnRate, setPpnRate] = useState(0);
+  const [padRate, setPadRate] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
   const [penggunaNama, setPenggunaNama] = useState("");
   const [penggunaNip, setPenggunaNip] = useState("");
@@ -38,14 +43,17 @@ function KwitansiJasa() {
   const [penerimaNama, setPenerimaNama] = useState("");
 
   const notaNumber = Number(nota) || 0;
-  const pphNumber = Number(pph21) || 0;
-  const pphEnabled = notaNumber > 1000000;
-  const jumlahDiterimakan = notaNumber + (pphEnabled ? pphNumber : 0);
+  // Pajak berbasis Nota Pembayaran (DPP dihapus dari Jasa)
+  const pph21Amount = Math.round(notaNumber * (Number(pph21Rate) || 0) / 100);
+  const pph22Amount = Math.round(notaNumber * (Number(pph22Rate) || 0) / 100);
+  const pph23Amount = Math.round(notaNumber * (Number(pph23Rate) || 0) / 100);
+  const ppnAmount = Math.round(notaNumber * (Number(ppnRate) || 0) / 100);
+  const padAmount = Math.round(notaNumber * (Number(padRate) || 0) / 100);
+  // Jumlah Diterimakan = Nota Pembayaran dikurangi seluruh pajak yang diinput
+  const jumlahDiterimakan = notaNumber - (pph21Amount + pph22Amount + pph23Amount + ppnAmount + padAmount);
   const uangSebanyakAuto = jumlahDiterimakan ? `${terbilang(jumlahDiterimakan)} Rupiah` : "";
 
-  useEffect(() => {
-    if (notaNumber === 0 && pph21 !== 0) setPph21(0);
-  }, [notaNumber, pph21]);
+  // Hapus logika pph21 lama (tidak digunakan lagi)
 
   // Prefill/edit from Dashboard state (support prefill.id as editId)
   useEffect(() => {
@@ -59,9 +67,13 @@ function KwitansiJasa() {
       setBuktiKas("");
       setKodeRek("");
       setTerimaDari("");
-      setUntukPembayaran("");
-      setNota(0);
-      setPph21(0);
+  setUntukPembayaran("");
+  setNota(0);
+    setPph21Rate(0);
+    setPph22Rate(0);
+    setPph23Rate(0);
+    setPpnRate(0);
+    setPadRate(0);
       setPenggunaNama("");
       setPenggunaNip("");
       setPptkNama("");
@@ -79,8 +91,15 @@ function KwitansiJasa() {
     setKodeRek(prefill.kodeRek || "");
     setTerimaDari(prefill.terimaDari || prefill.penerima || prefill.customerName || "");
     setUntukPembayaran(prefill.untukPembayaran || prefill.notes || "");
-    setNota(Number(prefill.notaPembayaran ?? prefill.total ?? 0) || 0);
-    setPph21(Number(prefill.pph21 ?? 0) || 0);
+  const baseNota = Number(prefill.notaPembayaran ?? prefill.total ?? 0) || 0;
+  setNota(baseNota);
+  // Prefill rates if saved; else try to infer from amounts based on Nota
+  const infer = (amt) => (baseNota > 0 ? Math.round((Number(amt||0) / baseNota) * 10000) / 100 : 0);
+    setPph21Rate(Number(prefill.pph21Rate ?? infer(prefill.pph21)) || 0);
+    setPph22Rate(Number(prefill.pph22Rate ?? infer(prefill.pph22)) || 0);
+    setPph23Rate(Number(prefill.pph23Rate ?? infer(prefill.pph23)) || 0);
+    setPpnRate(Number(prefill.ppnRate ?? infer(prefill.ppn)) || 0);
+    setPadRate(Number(prefill.padRate ?? infer(prefill.pad)) || 0);
     const sig = prefill.signatures || {};
     setPenggunaNama(sig.pengguna?.nama || prefill.penggunaAnggaran || "");
     setPenggunaNip(sig.pengguna?.nip || prefill.nipPenggunaAnggaran || "");
@@ -96,7 +115,7 @@ function KwitansiJasa() {
   useEffect(() => {
     if (!dirtyReady) return;
     try { window.localStorage.setItem('kwitansi_dirty','1'); } catch {}
-  }, [dirtyReady, lembar, buktiKas, kodeRek, terimaDari, untukPembayaran, nota, pph21, penggunaNama, penggunaNip, pptkNama, pptkNip, bendaharaNama, bendaharaNip, penerimaNama]);
+  }, [dirtyReady, lembar, buktiKas, kodeRek, terimaDari, untukPembayaran, nota, pph21Rate, pph22Rate, pph23Rate, ppnRate, padRate, penggunaNama, penggunaNip, pptkNama, pptkNip, bendaharaNama, bendaharaNip, penerimaNama]);
 
   const formatNumber = (val) => {
     if (val === '' || val === null || isNaN(val)) return '';
@@ -117,7 +136,12 @@ function KwitansiJasa() {
     untukPembayaran,
     uraian,
     notaPembayaran: notaNumber,
-    pph21: pphEnabled ? pphNumber : 0,
+  // pph21 tidak ditampilkan di laporan Jasa, tapi disediakan di form
+  pph21: pph21Amount,
+  pph22: pph22Amount,
+  pph23: pph23Amount,
+  ppn: ppnAmount,
+  pad: padAmount,
     jumlahDiterimakan,
     tanggal: new Date().toLocaleDateString('id-ID'),
     penggunaNama,
@@ -162,7 +186,7 @@ function KwitansiJasa() {
       frames.forEach(el => {
         el.classList.add('pdf-shift');
         if (el.classList.contains('dual')) el.classList.add('pdf-gap-10');
-        el.classList.add('pdf-sign-gap-15','pdf-noborder','pdf-title-up-5','pdf-title-left-2','pdf-trim-bottom','pdf-top-right-left-10');
+        el.classList.add('pdf-sign-gap-15','pdf-noborder','pdf-title-up-5','pdf-title-down-5','pdf-title-left-2','pdf-trim-bottom','pdf-top-right-left-10');
       });
       await downloadElementAsPdf(printRef.current, { filename: 'kwitansi-jasa.pdf', page:'a4', orientation:'portrait', margin:0, scale:2 });
     } catch (e) {
@@ -170,6 +194,7 @@ function KwitansiJasa() {
     } finally {
       frames.forEach(el => {
         el.classList.remove('pdf-shift','pdf-gap-10','pdf-sign-gap-15','pdf-noborder','pdf-title-up-5','pdf-title-left-2','pdf-trim-bottom','pdf-top-right-left-10');
+        el.classList.remove('pdf-title-down-5');
       });
     }
   };
@@ -178,6 +203,14 @@ function KwitansiJasa() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
   const handleSave = async () => {
+    // Validasi: Terima Dari, Nota Pembayaran, dan Uang Sebanyak (jumlah diterimakan) wajib terisi
+    const missingTerima = !String(terimaDari || '').trim();
+    const missingNota = !(notaNumber > 0);
+    const missingUangSebanyak = !(jumlahDiterimakan > 0);
+    if (missingTerima || missingNota || missingUangSebanyak) {
+      toast.error('Kwitansi tidak dapat disimpan. Lengkapi Terima Dari, Uang Sebanyak, dan Nota Pembayaran terlebih dahulu.', { title: 'Tidak dapat disimpan' });
+      return;
+    }
     setSaveMsg("");
     setSaving(true);
     try {
@@ -195,8 +228,18 @@ function KwitansiJasa() {
         uangSebanyak: uangSebanyakAuto,
         untukPembayaran,
         uraian,
-        notaPembayaran: notaNumber,
-        pph21: pphEnabled ? pphNumber : 0,
+    notaPembayaran: notaNumber,
+  // store both rates and computed amounts
+  pph21: pph21Amount,
+  pph22: pph22Amount,
+  pph23: pph23Amount,
+  ppn: ppnAmount,
+  pad: padAmount,
+  pph21Rate,
+  pph22Rate,
+  pph23Rate,
+  ppnRate,
+  padRate,
         jumlahDiterimakan,
         tanggal: new Date().toISOString(),
         signatures: {
@@ -255,7 +298,11 @@ function KwitansiJasa() {
                 { label: 'Untuk pembayaran', key: 'untukPembayaran', bind: { value: untukPembayaran, onChange: (e)=> setUntukPembayaran(e.target.value) } },
                 { label: 'Uraian', noInput: true, key: 'uraian' },
                 { label: 'Nota Pembayaran', key: 'notaPembayaran', type: 'numberCurrency' },
-                { label: 'PPH 21', key: 'pph21', type: 'numberCurrency' },
+                { label: 'PPh 21', key: 'pph21', type: 'tax' },
+                { label: 'PPh 22', key: 'pph22', type: 'tax' },
+                { label: 'PPh 23', key: 'pph23', type: 'tax' },
+                { label: 'PPN', key: 'ppn', type: 'tax' },
+                { label: 'PAD', key: 'pad', type: 'tax' },
                 { label: 'Jumlah diterimakan', key: 'jumlahDiterimakan', type: 'calculated' }
               ].map((f, idx) => {
                 if (f.heading) return (<div key={idx} className="text-center fw-semibold my-2 kwitansi-subtitle">KWITANSI</div>);
@@ -269,8 +316,46 @@ function KwitansiJasa() {
                       {!f.noInput && f.type === 'numberCurrency' && f.key === 'notaPembayaran' && (
                         <input className="form-control form-control-sm" value={nota === 0 ? '' : formatNumber(notaNumber)} onChange={(e)=> setNota(parseNumeric(e.target.value))} inputMode="numeric" placeholder="0" />
                       )}
-                      {!f.noInput && f.type === 'numberCurrency' && f.key === 'pph21' && (
-                        <input className={`form-control form-control-sm ${!pphEnabled ? 'kw-readonly' : ''}`} value={pphEnabled ? (pph21 === 0 ? '' : formatNumber(pphNumber)) : ''} onChange={(e)=> setPph21(parseNumeric(e.target.value))} inputMode="numeric" disabled={!pphEnabled} />
+                      
+                      {!f.noInput && f.type === 'tax' && (
+                        <div className="d-flex justify-content-end align-items-center gap-2 flex-wrap">
+                          <div className="d-flex align-items-center" style={{ maxWidth: '110px' }}>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm text-end"
+                              min="0"
+                              step="0.5"
+                              value={{
+                                pph21: pph21Rate,
+                                pph22: pph22Rate,
+                                pph23: pph23Rate,
+                                ppn: ppnRate,
+                                pad: padRate
+                              }[f.key]}
+                              onChange={(e)=>{
+                                const val = Number(e.target.value) || 0;
+                                if (f.key==='pph21') setPph21Rate(val);
+                                else if (f.key==='pph22') setPph22Rate(val);
+                                else if (f.key==='pph23') setPph23Rate(val);
+                                else if (f.key==='ppn') setPpnRate(val);
+                                else if (f.key==='pad') setPadRate(val);
+                              }}
+                            />
+                            <span className="ms-1 small">%</span>
+                          </div>
+                          <input
+                            className="form-control form-control-sm text-end kw-readonly"
+                            readOnly
+                            style={{ maxWidth: '140px' }}
+                            value={
+                              f.key==='pph21' ? (pph21Amount ? formatNumber(pph21Amount) : '') :
+                              f.key==='pph22' ? (pph22Amount ? formatNumber(pph22Amount) : '') :
+                              f.key==='pph23' ? (pph23Amount ? formatNumber(pph23Amount) : '') :
+                              f.key==='ppn' ? (ppnAmount ? formatNumber(ppnAmount) : '') :
+                              f.key==='pad' ? (padAmount ? formatNumber(padAmount) : '') : ''
+                            }
+                          />
+                        </div>
                       )}
                       {!f.noInput && f.type === 'calculated' && f.key === 'jumlahDiterimakan' && (
                         <input className="form-control form-control-sm kw-readonly" value={jumlahDiterimakan ? formatNumber(jumlahDiterimakan) : ''} readOnly />

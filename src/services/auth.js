@@ -15,10 +15,16 @@ export async function register(email, password, username) {
     }
   }
   const uid = user.uid;
+  
+  // Tentukan role berdasarkan email
+  const role = email === 'admin1@gmail.com' ? 'admin' : 'user';
+  
   await setDoc(doc(db, "users", uid), {
     email,
     username: username || null,
-    role: "Bendahara" // default role
+    displayName: username || email.split('@')[0],
+    role: role,
+    createdAt: new Date().toISOString()
   });
   return user;
 }

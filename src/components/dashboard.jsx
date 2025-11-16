@@ -126,7 +126,7 @@ function Dashboard() {
       <Header />
 
       <main className="container py-3">
-        <h3 className="fw-medium mb-4">Selamat datang di Kwitansi DPMD Kabupaten Nganjuk, {displayName}.</h3>
+        <h3 className="fw-medium mb-4">Selamat Datang di Kwitansi DPMD Kabupaten Nganjuk, {displayName}.</h3>
         <div className="row g-3 mb-4">
           <div className="col-md-6 col-lg-4">
             <div className="card text-bg-secondary h-100 shadow-sm">
@@ -211,8 +211,8 @@ function Dashboard() {
               <div className="p-3 text-muted small">Belum ada data</div>
             ) : (
               <div className="table-responsive">
-                <table className="table table-sm table-hover table-striped mb-0 align-middle">
-                  <thead className="table-light">
+                <table className="table table-sm table-hover table-striped table-bordered mb-0 align-middle">
+                  <thead style={{backgroundColor: '#e9ecef'}}>
                     <tr>
                       <th>Tanggal</th>
                       <th>Jenis</th>

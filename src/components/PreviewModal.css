@@ -117,18 +117,7 @@
     vertical-align: top !important;
   }
   .top-right-block { top: 0; right: 0mm !important; }
-  /* Garis putus-putus penanda margin 25.4mm di dalam kertas A4 (hanya preview) */
-  .doc-frame::before {
-    content: "";
-    position: absolute;
-    left: 15mm;
-    right: 15mm;
-    top: 15mm;
-    bottom: 15mm;
-    border: 0.3mm dashed rgba(0,0,0,0.35);
-    pointer-events: none;
-    z-index: 2;
-  }
+  /* (removed) Garis putus-putus penanda margin 25.4mm di dalam kertas A4 (hanya preview) */
 }
 
 /* Hapus scaling: ukuran A4 tetap asli, kontainer menyesuaikan lebar isi */
@@ -137,6 +126,7 @@
 /* (removed) screen-only scale; ukuran preview mengikuti ukuran A4 tanpa skala */
 
 @media print {
+  html, body { margin: 0 !important; }
   .preview-overlay { position:static; background:transparent; padding:0; }
   .preview-dialog { box-shadow:none !important; padding:0; }
   .preview-toolbar, .print-hint, .btn { display:none !important; }
@@ -204,8 +194,11 @@
 /* PDF/PRINT-only: hilangkan padding bawah agar tidak ada jarak setelah salinan ke-2 */
 .doc-frame.pdf-trim-bottom { padding-bottom: 0 !important; }
 
-/* PDF-only: move KWITANSI title up by 5mm */
-.doc-frame.pdf-title-up-5 .title-center { margin-top: 18mm !important; }
+/* PDF/PRINT: move KWITANSI title up by 10mm total (base 19mm -> 9mm) */
+.doc-frame.pdf-title-up-5 .title-center { margin-top: 9mm !important; }
+
+/* PDF-only extra adjust: when generating PDF, bring it back down 5mm (net +5mm up from base) */
+.doc-frame.pdf-title-up-5.pdf-title-down-5 .title-center { margin-top: 14mm !important; }
 
 /* PRINT-only: geser semua isi ke kiri 5mm */
 .doc-frame.print-shift-left-5 { margin-left: -5mm !important; }
