@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from './ui/ToastProvider';
 import Header from './layout/Header';
@@ -10,8 +10,10 @@ export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [newRole, setNewRole] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { success, error } = useToast();
 
@@ -23,6 +25,7 @@ export default function UserManagement() {
         const currentUser = userDoc.docs.find(doc => doc.id === user.uid);
         if (currentUser && currentUser.data().role === 'admin') {
           setCurrentUserRole('admin');
+          setCurrentUserEmail(user.email);
           fetchUsers();
         } else {
           // Not admin, redirect to dashboard
@@ -83,6 +86,14 @@ export default function UserManagement() {
   };
 
   const handleDeleteUser = async (userId, userEmail) => {
+    if (userEmail === 'admin1@gmail.com') {
+      error('Admin utama tidak dapat dihapus');
+      return;
+    }
+    if (userEmail === currentUserEmail) {
+      error('Anda tidak dapat menghapus akun sendiri');
+      return;
+    }
     if (!confirm(`Hapus pengguna ${userEmail}?`)) return;
     
     try {
@@ -94,6 +105,32 @@ export default function UserManagement() {
       console.error(err);
     }
   };
+
+  const handleResetPassword = async (userEmail) => {
+    if (!confirm(`Kirim email reset password ke ${userEmail}?`)) return;
+    
+    try {
+      await sendPasswordResetEmail(auth, userEmail);
+      success(`Email reset password berhasil dikirim ke ${userEmail}`);
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'auth/network-request-failed') {
+        error('Tidak ada koneksi internet');
+      } else {
+        error('Gagal mengirim email reset password');
+      }
+    }
+  };
+
+  // Filter users berdasarkan search query
+  const filteredUsers = users.filter(user => {
+    const query = searchQuery.toLowerCase();
+    return (
+      (user.displayName || user.username || '').toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query) ||
+      (user.role || '').toLowerCase().includes(query)
+    );
+  });
 
   if (loading) {
     return (
@@ -117,6 +154,35 @@ export default function UserManagement() {
       <div className="container mt-4">
         <h2 className="mb-4 text-center">Manajemen Pengguna</h2>
       
+      <div className="row mb-3">
+        <div className="col-md-6">
+          <div className="input-group">
+            <span className="input-group-text">
+              <i className="bi bi-search"></i>
+            </span>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Cari berdasarkan username, email, atau role..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button 
+                className="btn btn-outline-secondary" 
+                onClick={() => setSearchQuery('')}
+                title="Clear"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="col-md-6 text-end">
+          <strong>Total Pengguna:</strong> {filteredUsers.length} {searchQuery && `dari ${users.length}`}
+        </div>
+      </div>
+      
       <div className="table-responsive">
         <table className="table table-bordered table-sm">
           <thead>
@@ -130,7 +196,14 @@ export default function UserManagement() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user, index) => (
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="text-center text-muted">
+                  {searchQuery ? 'Tidak ada hasil yang sesuai dengan pencarian' : 'Belum ada pengguna terdaftar'}
+                </td>
+              </tr>
+            ) : (
+              filteredUsers.map((user, index) => (
               <tr key={user.id}>
                 <td>{index + 1}</td>
                 <td>{user.username || user.displayName || '-'}</td>
@@ -171,13 +244,22 @@ export default function UserManagement() {
                       <button 
                         className="btn btn-sm btn-outline-secondary me-1"
                         onClick={() => handleEditRole(user)}
+                        title="Ubah Role"
                       >
                         Ubah Role
                       </button>
                       <button 
+                        className="btn btn-sm btn-outline-warning me-1"
+                        onClick={() => handleResetPassword(user.email)}
+                        title="Reset Password"
+                      >
+                        Reset Password
+                      </button>
+                      <button 
                         className="btn btn-sm btn-outline-secondary"
                         onClick={() => handleDeleteUser(user.id, user.email)}
-                        disabled={user.email === 'admin1@gmail.com'}
+                        disabled={user.email === 'admin1@gmail.com' || user.email === currentUserEmail}
+                        title={user.email === 'admin1@gmail.com' ? 'Admin utama tidak dapat dihapus' : user.email === currentUserEmail ? 'Tidak dapat menghapus akun sendiri' : 'Hapus'}
                       >
                         Hapus
                       </button>
@@ -185,16 +267,11 @@ export default function UserManagement() {
                   )}
                 </td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
       </div>
-
-      {users.length === 0 && (
-        <div className="alert alert-info">
-          Belum ada pengguna terdaftar.
-        </div>
-      )}
       </div>
     </>
   );
