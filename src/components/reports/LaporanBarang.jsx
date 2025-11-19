@@ -4,6 +4,7 @@ import { db, auth } from '../../firebase';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../ui/ToastProvider';
+import * as XLSX from 'xlsx';
 
 function formatNumberID(n) {
   if (n === null || n === undefined || n === '' || isNaN(n)) return '';
@@ -70,6 +71,51 @@ export default function LaporanBarang(){
     }
   }, []);
 
+  const handleExportExcel = useCallback(() => {
+    const q = (search||'').toLowerCase();
+    const filtered = !q ? rows : rows.filter((r) => {
+      const sig = r.signatures || {};
+      const pengguna = sig.pengguna || {};
+      const pptk = sig.pptk || {};
+      const bendahara = sig.bendahara || {};
+      const penerima = sig.penerima || {};
+      const hay = [r.kodeRek, r.untukPembayaran, pengguna.nama, pengguna.nip, pptk.nama, pptk.nip, bendahara.nama, bendahara.nip, penerima.nama].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+
+    const dataToExport = filtered.map((r, idx) => {
+      const sig = r.signatures || {};
+      const pengguna = sig.pengguna || {};
+      const pptk = sig.pptk || {};
+      const bendahara = sig.bendahara || {};
+      const penerima = sig.penerima || {};
+      return {
+        'No': filtered.length - idx,
+        'No Rek': r.kodeRek || '-',
+        'Untuk Pembayaran': r.untukPembayaran || '-',
+        'Nota': r.notaPembayaran || '',
+        'PPh 21': r.pph21 || '',
+        'PPh 22': r.pph22 || '',
+        'PPh 23': r.pph23 || '',
+        'PPN': r.ppn || '',
+        'PAD': r.pad || '',
+        'PA': pengguna.nama || '-',
+        'NIP PA': pengguna.nip || '-',
+        'PPTK': pptk.nama || '-',
+        'NIP PPTK': pptk.nip || '-',
+        'Bendahara': bendahara.nama || '-',
+        'NIP Bendahara': bendahara.nip || '-',
+        'Penerima': penerima.nama || '-'
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Laporan Barang');
+    XLSX.writeFile(wb, `Laporan_Barang_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success('Data berhasil diekspor ke Excel');
+  }, [rows, search, toast]);
+
   return (
     <div className="dashboard-wrapper">
       <Header />
@@ -94,6 +140,7 @@ export default function LaporanBarang(){
           <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=> setSearch((searchDraft||'').trim())}>Cari</button>
           <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=> { setSearch(''); setSearchDraft(''); }}>Reset</button>
           <button type="button" className="btn btn-outline-secondary btn-sm" onClick={()=> navigate('/kwitansi/barang')}>+ Tambah</button>
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleExportExcel}>Export Excel</button>
         </div>
         {loading && <div>Memuat…</div>}
         {error && <div className="text-danger small mb-2">{error}</div>}

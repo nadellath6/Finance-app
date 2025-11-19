@@ -67,13 +67,13 @@ function KwitansiJasa() {
       setBuktiKas("");
       setKodeRek("");
       setTerimaDari("");
-  setUntukPembayaran("");
-  setNota(0);
-    setPph21Rate(0);
-    setPph22Rate(0);
-    setPph23Rate(0);
-    setPpnRate(0);
-    setPadRate(0);
+      setUntukPembayaran("");
+      setNota(0);
+      setPph21Rate(0);
+      setPph22Rate(0);
+      setPph23Rate(0);
+      setPpnRate(0);
+      setPadRate(0);
       setPenggunaNama("");
       setPenggunaNip("");
       setPptkNama("");
@@ -259,6 +259,25 @@ function KwitansiJasa() {
         setSaveMsg('Berhasil disimpan ke Laporan Jasa.');
       }
       try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
+      // Reset form fields after save
+      setLembar("");
+      setBuktiKas("");
+      setKodeRek("");
+      setTerimaDari("");
+      setUntukPembayaran("");
+      setNota(0);
+      setPph21Rate(0);
+      setPph22Rate(0);
+      setPph23Rate(0);
+      setPpnRate(0);
+      setPadRate(0);
+      setPenggunaNama("");
+      setPenggunaNip("");
+      setPptkNama("");
+      setPptkNip("");
+      setBendaharaNama("");
+      setBendaharaNip("");
+      setPenerimaNama("");
     } catch (err) {
       console.error('Gagal simpan:', err);
       toast.error('Gagal menyimpan. Periksa koneksi atau coba lagi.');

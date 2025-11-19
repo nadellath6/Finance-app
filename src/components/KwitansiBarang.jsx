@@ -64,7 +64,11 @@ function KwitansiBarang() {
       setTerimaDari("");
       setUntukPembayaran("");
   setNota(0);
-  setPph21Rate(0); setPph22Rate(0); setPph23Rate(0); setPpnRate(0); setPadRate(0);
+  setPph21Rate(0);
+  setPph22Rate(0);
+  setPph23Rate(0);
+  setPpnRate(0);
+  setPadRate(0);
       setPenggunaNama("");
       setPenggunaNip("");
       setPptkNama("");
@@ -225,6 +229,25 @@ function KwitansiBarang() {
         setSaveMsg('Berhasil disimpan ke Laporan Barang.');
       }
       try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
+      // Reset form after save
+      setLembar("");
+      setBuktiKas("");
+      setKodeRek("");
+      setTerimaDari("");
+      setUntukPembayaran("");
+      setNota(0);
+      setPph21Rate(0);
+      setPph22Rate(0);
+      setPph23Rate(0);
+      setPpnRate(0);
+      setPadRate(0);
+      setPenggunaNama("");
+      setPenggunaNip("");
+      setPptkNama("");
+      setPptkNip("");
+      setBendaharaNama("");
+      setBendaharaNip("");
+      setPenerimaNama("");
     } catch (err) {
       console.error('Gagal simpan:', err);
       toast.error('Gagal menyimpan. Periksa koneksi atau coba lagi.');
