@@ -10,7 +10,7 @@ const formatCurrency = (val) => {
 };
 
 function ReceiptBlock({ index, data }) {
-  const { lembar, buktiKas, kodeRek, terimaDari, uangSebanyak, untukPembayaran, notaPembayaran,
+  const { lembar, buktiKas, kodeRek, terimaDari, uangSebanyak, untukPembayaran, notaPembayaran, useMode, dpp,
     pph21 = 0, pph22 = 0, pph23 = 0, ppn = 0, pad = 0,
     jumlahDiterimakan, tanggal, lokasi = 'Nganjuk,', penerimaNama,
     penggunaNama, penggunaNip, pptkNama, pptkNip, bendaharaNama, bendaharaNip } = data;
@@ -133,10 +133,10 @@ function ReceiptBlock({ index, data }) {
                   <table className="amount-table inline">
                     <tbody>
                       <tr className="amt-row">
-                        <td className="albl">Nota Pembayaran</td>
+                        <td className="albl">{useMode === 'dpp' && dpp ? 'DPP' : 'Nota Pembayaran'}</td>
                         <td className="acolon">:</td>
-                        <td className="acurrency">{notaPembayaran ? 'Rp' : ''}</td>
-                        <td className="aval value condensed-val">{notaPembayaran ? formatCurrency(notaPembayaran) : ''}</td>
+                        <td className="acurrency">{(useMode === 'dpp' ? dpp : notaPembayaran) ? 'Rp' : ''}</td>
+                        <td className="aval value condensed-val">{(useMode === 'dpp' ? dpp : notaPembayaran) ? formatCurrency(useMode === 'dpp' ? dpp : notaPembayaran) : ''}</td>
                       </tr>
                       {pph21 ? (
                         <tr className="amt-row">
@@ -215,7 +215,10 @@ function ReceiptBlock({ index, data }) {
           <div className="sig-nip">{bendaharaNip || 'NIP'}</div>
         </div>
         <div className="sig-col">
-          <div className="sig-label sig-lokasi-left">Nganjuk,</div>
+          <div className="sig-label sig-lokasi-left">
+            <span className="line-left">Nganjuk,</span>
+            <span className="line-center">Penerima</span>
+          </div>
           <div className="sig-space" />
           <div className="sig-name-line">{penerimaNama || 'Nama'}</div>
           <div className="sig-nip">{/* no NIP for Penerima */}</div>

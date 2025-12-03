@@ -26,6 +26,7 @@ function KwitansiHonor() {
   const [untukPembayaran, setUntukPembayaran] = useState("");
   const [uraian] = useState(""); // no input currently per requirements
   const [nota, setNota] = useState(0); // Nota Pembayaran numeric value
+  const [taxMode, setTaxMode] = useState('kurang'); // 'tambah' atau 'kurang'
   // Tax rates (%) for auto-calculation
   const [pph21Rate, setPph21Rate] = useState(0);
   const [pph22Rate, setPph22Rate] = useState(0);
@@ -51,8 +52,9 @@ function KwitansiHonor() {
   const pph23Amount = Math.round(notaNumber * (Number(pph23Rate)||0) / 100);
   const ppnAmount = Math.round(notaNumber * (Number(ppnRate)||0) / 100);
   const padAmount = Math.round(notaNumber * (Number(padRate)||0) / 100);
-  // Jumlah Diterimakan = Nota Pembayaran dikurangi seluruh pajak yang diinput (PPh21 selalu bisa dipakai)
-  const jumlahDiterimakan = notaNumber - (pph21Amount + pph22Amount + pph23Amount + ppnAmount + padAmount);
+  // Jumlah Diterimakan = Nota ditambah atau dikurangi pajak sesuai taxMode
+  const totalPajak = pph21Amount + pph22Amount + pph23Amount + ppnAmount + padAmount;
+  const jumlahDiterimakan = taxMode === 'tambah' ? notaNumber + totalPajak : notaNumber - totalPajak;
 
   // Auto-convert jumlah diterimakan to words for "Uang Sebanyak"
   const uangSebanyakAuto = jumlahDiterimakan ? `${terbilang(jumlahDiterimakan)} Rupiah` : "";
@@ -350,7 +352,6 @@ function KwitansiHonor() {
       toast.error('Kwitansi tidak dapat disimpan. Lengkapi Terima Dari, Uang Sebanyak, dan Nota Pembayaran terlebih dahulu.', { title: 'Tidak dapat disimpan' });
       return;
     }
-    setSaveMsg("");
     setSaving(true);
     try {
       const docData = {
@@ -367,6 +368,7 @@ function KwitansiHonor() {
         untukPembayaran,
         uraian,
   notaPembayaran: notaNumber,
+  taxMode,
   pph21: pph21Amount,
   pph22: pph22Amount,
   pph23: pph23Amount,
@@ -390,11 +392,9 @@ function KwitansiHonor() {
         } else {
           await updateDoc(doc(db, 'users', uid, 'laporan_honor', editId), docData);
         }
-        setSaveMsg('Berhasil diperbarui.');
         toast.success('Data berhasil diperbarui');
       } else {
         await addDoc(collection(db, 'users', uid, 'laporan_honor'), docData);
-        setSaveMsg('Berhasil disimpan ke Laporan Honor.');
         toast.success('Berhasil disimpan ke Laporan Honor');
         
         // Reset semua field setelah save berhasil (hanya untuk data baru)
@@ -409,6 +409,7 @@ function KwitansiHonor() {
         setPph23Rate(0);
         setPpnRate(0);
         setPadRate(0);
+        setTaxMode('kurang');
         setPenggunaNama("");
         setPenggunaNip("");
         setPptkNama("");
@@ -420,12 +421,10 @@ function KwitansiHonor() {
       try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
       setUnsaved(false);
     } catch (err) {
-      console.error('Gagal simpan:', err);
-      setSaveMsg('Gagal menyimpan. Periksa koneksi atau coba lagi.');
+      console.error('Gagal menyimpan:', err);
       toast.error('Gagal menyimpan. Periksa koneksi atau coba lagi.');
     } finally {
       setSaving(false);
-      setTimeout(() => setSaveMsg(""), 4000);
     }
   };
 
@@ -502,6 +501,7 @@ function KwitansiHonor() {
               { label: 'PPh 23', key: 'pph23', type: 'tax' },
               { label: 'PPN', key: 'ppn', type: 'tax' },
               { label: 'PAD', key: 'pad', type: 'tax' },
+              { label: 'Pajak', key: 'taxModeButton', type: 'taxModeButton' },
               { label: 'Jumlah diterimakan', key: 'jumlahDiterimakan', type: 'calculated' }
             ].map((f, idx) => {
               if (f.heading) {
@@ -564,6 +564,24 @@ function KwitansiHonor() {
                             f.key==='pad' ? (padAmount ? formatNumber(padAmount) : '') : ''
                           }
                         />
+                      </div>
+                    )}
+                    {f.type === 'taxModeButton' && (
+                      <div className="btn-group w-100" role="group">
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${taxMode === 'kurang' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                          onClick={() => setTaxMode('kurang')}
+                        >
+                          Dikurangi Pajak
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${taxMode === 'tambah' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                          onClick={() => setTaxMode('tambah')}
+                        >
+                          Ditambah Pajak
+                        </button>
                       </div>
                     )}
                     {!f.noInput && f.type === 'calculated' && f.key === 'jumlahDiterimakan' && (
@@ -646,7 +664,6 @@ function KwitansiHonor() {
               {saving ? 'Menyimpan…' : (editId ? 'Update' : 'Save')}
             </button>
           </div>
-          {saveMsg && (<div className="mt-2 small text-end">{saveMsg}</div>)}
         </div>
       </div>
       {/* Hidden print content */}

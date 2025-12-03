@@ -57,18 +57,19 @@
 .amount-table .dotted { border-bottom:none; }
 .dotted.short { min-width:28mm; }
 .dotted.wide { min-width:60mm; }
-.signature-row { display:flex; justify-content:space-between; margin-top:16mm; }
-.signature-row .sig-col { width:23%; text-align:center; font-size:9.8pt; }
+.signature-row { display:flex; justify-content:space-between; margin-top:16mm; gap:5mm; }
+.signature-row .sig-col { width:50mm; text-align:center; font-size:9.8pt; }
 .sig-label { font-size:9pt; min-height:22px; white-space:normal; }
 .sig-label.sig-shift-right { margin-left:-15mm; }
 .sig-label.sig-shift-mengetahui { margin-left:-10mm; }
 .sig-label.sig-left { display:block; width:100%; text-align:left; }
-.sig-label .line-left { display:block; text-align:left; margin-left:-5mm; }
+.sig-label .line-left { display:block; text-align:left; margin-left:5mm; }
 .sig-label .line-center { display:block; text-align:center; }
-.sig-label.sig-lokasi-left { text-align:left; margin-left:-5mm; }
+.sig-label.sig-lokasi-left { text-align:left; margin-left:0mm; }
 .sig-space { height:36mm; }
-.sig-name-line { text-decoration:underline; font-weight:600; font-size:9.5pt; }
-.sig-nip { font-size:8.5pt; margin-top:3px; }
+.sig-name-line { text-decoration:underline; font-weight:600; font-size:8pt; display:inline-block; width:50mm; text-align:center; }
+.sig-nip { font-size:8pt; margin-top:3px; display:inline-block; width:50mm; text-align:center; }
+.sig-col:not(:last-child) .sig-nip::before { content: "NIP. "; }
 
 /* Shift only Pengguna Anggaran (first column) name & NIP 5mm to the left */
 .signature-row .sig-col:first-child .sig-name-line,
@@ -78,9 +79,14 @@
   display:block; /* stack vertically without overlap */
 }
 
-/* Shift Penerima (last column) name down by total 9mm */
+/* Shift Penerima (last column) name down by total 4mm (was 7mm, moved up 3mm) */
 .signature-row .sig-col:last-child .sig-name-line {
-  margin-top:9mm;
+  margin-top:4mm;
+  text-decoration:none;
+}
+/* Shift Penerima (last column) 10mm to the left (5mm + 5mm) */
+.signature-row .sig-col:last-child {
+  margin-left:-10mm;
 }
 /* Bring NIP directly under Name for Pengguna Anggaran (remove vertical gap) */
 .signature-row .sig-col:first-child .sig-nip { margin-top:0; }
@@ -120,9 +126,6 @@
   /* (removed) Garis putus-putus penanda margin 25.4mm di dalam kertas A4 (hanya preview) */
 }
 
-/* Hapus scaling: ukuran A4 tetap asli, kontainer menyesuaikan lebar isi */
-
-/* Screen-only: perkecil tampilan preview tanpa mempengaruhi hasil print/PDF */
 /* (removed) screen-only scale; ukuran preview mengikuti ukuran A4 tanpa skala */
 
 @media print {
@@ -131,7 +134,11 @@
   .preview-dialog { box-shadow:none !important; padding:0; }
   .preview-toolbar, .print-hint, .btn { display:none !important; }
   body { background:#fff !important; }
-  /* keep A4 wrapper clean in print; do not override .doc-frame spacing so it matches preview */
+
+  /* Shift all signature blocks 10mm further to the left only in print */
+  .signature-row { left: -10mm !important; }
+  /* Raise recipient name 2mm higher (global 7mm -> print 5mm) */
+  .signature-row .sig-col:last-child .sig-name-line { margin-top:5mm !important; }
 }
 
 @page { size: A4 portrait; margin: 0; }
@@ -157,11 +164,12 @@
 .uraian-cell { min-height:14mm; display:block; }
 .align-top { vertical-align:top !important; }
 .signature-row { display:flex; justify-content:space-between; margin-top:14mm; }
-.sig-col { width:23%; text-align:center; font-size:10pt; }
+.sig-col { width:45mm; text-align:center; font-size:10pt; }
 .sig-label { font-size:9.2pt; margin-bottom:4mm; }
 .sig-space { height:36mm; }
-.sig-name-line { font-weight:600; text-decoration:underline; font-size:9.8pt; }
-.sig-nip { font-size:8.6pt; margin-top:2px; }
+.sig-name-line { font-weight:600; text-decoration:underline; font-size:8pt; display:inline-block; width:50mm; text-align:center; }
+.sig-nip { font-size:8pt; margin-top:2px; display:inline-block; width:50mm; text-align:center; }
+.sig-col:not(:last-child) .sig-nip::before { content: "NIP. "; }
 
 @media print {
   .receipt-block { page-break-inside:avoid; }
@@ -229,15 +237,5 @@
 
 /* (reverted) removed user-adjustable CSS variable overrides */
 
-/* Penerima: naikkan nama 1mm dan hilangkan underline (berlaku preview/print/PDF) */
-.signature-row .sig-col:last-child .sig-name-line {
-  margin-top: 8mm !important; /* sebelumnya 9mm, naik 1mm */
-  text-decoration: none !important; /* hilangkan garis bawah khusus penerima */
-}
+/* Preview-only: removed override for penerima */
 
-/* Preview-only: penerima nama naik lagi 1mm (total 3mm dari base 9mm -> 6mm) */
-@media screen {
-  .signature-row .sig-col:last-child .sig-name-line {
-    margin-top: 6mm !important; /* hanya di preview */
-  }
-}

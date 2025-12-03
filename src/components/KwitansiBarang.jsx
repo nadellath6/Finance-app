@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Header from "./layout/Header";
 import PreviewModal from "./PreviewModal";
 import ReceiptDocument from "./Receipt";
@@ -14,6 +14,7 @@ import "./KwitansiHonor.css";
 function KwitansiBarang() {
   const toast = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [editId, setEditId] = useState(null);
   const [lembar, setLembar] = useState("");
@@ -23,6 +24,8 @@ function KwitansiBarang() {
   const [untukPembayaran, setUntukPembayaran] = useState("");
   const [uraian] = useState("");
   const [nota, setNota] = useState(0);
+  const [useMode, setUseMode] = useState('nota'); // 'nota' atau 'dpp'
+  const [taxMode, setTaxMode] = useState('kurang'); // 'tambah' atau 'kurang'
   // Tax rates (%) for auto-calculation
   const [pph21Rate, setPph21Rate] = useState(0);
   const [pph22Rate, setPph22Rate] = useState(0);
@@ -30,6 +33,10 @@ function KwitansiBarang() {
   const [ppnRate, setPpnRate] = useState(0);
   const [padRate, setPadRate] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
+  const [dirtyReady, setDirtyReady] = useState(false);
+  const [unsaved, setUnsaved] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [nextHref, setNextHref] = useState(null);
   const [penggunaNama, setPenggunaNama] = useState("");
   const [penggunaNip, setPenggunaNip] = useState("");
   const [pptkNama, setPptkNama] = useState("");
@@ -37,16 +44,25 @@ function KwitansiBarang() {
   const [bendaharaNama, setBendaharaNama] = useState("");
   const [bendaharaNip, setBendaharaNip] = useState("");
   const [penerimaNama, setPenerimaNama] = useState("");
-  const [dirtyReady, setDirtyReady] = useState(false);
 
   const notaNumber = Number(nota) || 0;
-  const pph21Amount = Math.round(notaNumber * (Number(pph21Rate)||0) / 100);
-  const pph22Amount = Math.round(notaNumber * (Number(pph22Rate)||0) / 100);
-  const pph23Amount = Math.round(notaNumber * (Number(pph23Rate)||0) / 100);
-  const ppnAmount = Math.round(notaNumber * (Number(ppnRate)||0) / 100);
-  const padAmount = Math.round(notaNumber * (Number(padRate)||0) / 100);
-  // Jumlah Diterimakan = Nota Pembayaran dikurangi seluruh pajak yang diinput (PPh21 selalu bisa dipakai)
-  const jumlahDiterimakan = notaNumber - (pph21Amount + pph22Amount + pph23Amount + ppnAmount + padAmount);
+
+  // Hitung DPP otomatis: DPP = Nota Pembayaran * 100/111
+  const calculateDpp = () => {
+    return Math.round(notaNumber * 100 / 111);
+  };
+
+  // Base untuk perhitungan pajak: gunakan DPP jika mode DPP, atau Nota jika mode Nota
+  const taxBase = useMode === 'dpp' ? calculateDpp() : notaNumber;
+
+  const pph21Amount = Math.round(taxBase * (Number(pph21Rate)||0) / 100);
+  const pph22Amount = Math.round(taxBase * (Number(pph22Rate)||0) / 100);
+  const pph23Amount = Math.round(taxBase * (Number(pph23Rate)||0) / 100);
+  const ppnAmount = Math.round(taxBase * (Number(ppnRate)||0) / 100);
+  const padAmount = Math.round(taxBase * (Number(padRate)||0) / 100);
+  // Jumlah Diterimakan = Base ditambah atau dikurangi pajak sesuai taxMode
+  const totalPajak = pph21Amount + pph22Amount + pph23Amount + ppnAmount + padAmount;
+  const jumlahDiterimakan = taxMode === 'tambah' ? taxBase + totalPajak : taxBase - totalPajak;
   const uangSebanyakAuto = jumlahDiterimakan ? `${terbilang(jumlahDiterimakan)} Rupiah` : "";
 
   useEffect(() => { if (notaNumber === 0) { setPph21Rate(0); setPph22Rate(0); setPph23Rate(0); setPpnRate(0); setPadRate(0); } }, [notaNumber]);
@@ -107,10 +123,64 @@ function KwitansiBarang() {
 
   useEffect(() => { if (!location?.state?.payload && !location?.state?.prefill) setDirtyReady(true); }, []);
 
+  // Tandai form kotor saat ada perubahan (setelah ready)
   useEffect(() => {
     if (!dirtyReady) return;
-    try { window.localStorage.setItem('kwitansi_dirty','1'); } catch {}
+    const hasData = 
+      (lembar && lembar.trim()) ||
+      (buktiKas && buktiKas.trim()) ||
+      (kodeRek && kodeRek.trim()) ||
+      (terimaDari && terimaDari.trim()) ||
+      (untukPembayaran && untukPembayaran.trim()) ||
+      notaNumber > 0 ||
+      pph21Rate > 0 || pph22Rate > 0 || pph23Rate > 0 || ppnRate > 0 || padRate > 0 ||
+      (penggunaNama && penggunaNama.trim()) ||
+      (penggunaNip && penggunaNip.trim()) ||
+      (pptkNama && pptkNama.trim()) ||
+      (pptkNip && pptkNip.trim()) ||
+      (bendaharaNama && bendaharaNama.trim()) ||
+      (bendaharaNip && bendaharaNip.trim()) ||
+      (penerimaNama && penerimaNama.trim());
+    
+    if (hasData) {
+      setUnsaved(true);
+      try { window.localStorage.setItem('kwitansi_dirty','1'); } catch {}
+    } else {
+      setUnsaved(false);
+      try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
+    }
   }, [dirtyReady, lembar, buktiKas, kodeRek, terimaDari, untukPembayaran, nota, pph21Rate, pph22Rate, pph23Rate, ppnRate, padRate, penggunaNama, penggunaNip, pptkNama, pptkNip, bendaharaNama, bendaharaNip, penerimaNama]);
+
+  // Peringatan saat refresh/close tab (native beforeunload)
+  useEffect(() => {
+    if (!unsaved) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [unsaved]);
+
+  // Intersep klik Link internal (SPA) bila ada perubahan belum disimpan
+  useEffect(() => {
+    if (!unsaved) return;
+    const onClick = (e) => {
+      let el = e.target;
+      while (el && el !== document && el.tagName !== 'A') el = el.parentElement;
+      if (!el || el.tagName !== 'A') return;
+      const href = el.getAttribute('href');
+      const target = el.getAttribute('target');
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (!href || href.startsWith('http') || target === '_blank') return;
+      if (href.startsWith('#')) return;
+      e.preventDefault();
+      setNextHref(href);
+      setConfirmOpen(true);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [unsaved]);
 
   const formatNumber = (val) => { if (val === '' || val === null || isNaN(val)) return ''; return new Intl.NumberFormat('id-ID').format(val); };
   const parseNumeric = (raw) => { if (raw === '' || raw === null) return 0; const cleaned = String(raw).replace(/[^0-9]/g, ''); return cleaned ? parseInt(cleaned, 10) : 0; };
@@ -123,7 +193,9 @@ function KwitansiBarang() {
     uangSebanyak: uangSebanyakAuto,
     untukPembayaran,
     uraian,
-    notaPembayaran: notaNumber,
+    useMode,
+    notaPembayaran: useMode === 'nota' ? notaNumber : 0,
+    dpp: useMode === 'dpp' ? calculateDpp() : 0,
   pph21: pph21Amount,
   pph22: pph22Amount,
   pph23: pph23Amount,
@@ -176,7 +248,6 @@ function KwitansiBarang() {
   };
 
   const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState("");
   const handleSave = async () => {
     // Validasi: Terima Dari, Nota Pembayaran, dan Uang Sebanyak (jumlah diterimakan) wajib terisi
     const missingTerima = !String(terimaDari || '').trim();
@@ -186,7 +257,6 @@ function KwitansiBarang() {
       toast.error('Kwitansi tidak dapat disimpan. Lengkapi Terima Dari, Uang Sebanyak, dan Nota Pembayaran terlebih dahulu.', { title: 'Tidak dapat disimpan' });
       return;
     }
-    setSaveMsg("");
     setSaving(true);
     try {
       const uid = auth?.currentUser?.uid;
@@ -203,7 +273,10 @@ function KwitansiBarang() {
         uangSebanyak: uangSebanyakAuto,
         untukPembayaran,
         uraian,
-  notaPembayaran: notaNumber,
+  useMode,
+  taxMode,
+  notaPembayaran: useMode === 'nota' ? notaNumber : 0,
+  dpp: useMode === 'dpp' ? calculateDpp() : 0,
   pph21: pph21Amount,
   pph22: pph22Amount,
   pph23: pph23Amount,
@@ -222,13 +295,12 @@ function KwitansiBarang() {
       if (editId) {
         await updateDoc(doc(db, 'users', uid, 'laporan_barang', editId), docData);
         toast.success('Data Barang berhasil diperbarui');
-        setSaveMsg('Berhasil diperbarui.');
       } else {
         await addDoc(collection(db, 'users', uid, 'laporan_barang'), docData);
         toast.success('Berhasil disimpan ke Laporan Barang');
-        setSaveMsg('Berhasil disimpan ke Laporan Barang.');
       }
       try { window.localStorage.setItem('kwitansi_dirty','0'); } catch {}
+      setUnsaved(false);
       // Reset form after save
       setLembar("");
       setBuktiKas("");
@@ -236,6 +308,8 @@ function KwitansiBarang() {
       setTerimaDari("");
       setUntukPembayaran("");
       setNota(0);
+      setUseMode('nota');
+      setTaxMode('kurang');
       setPph21Rate(0);
       setPph22Rate(0);
       setPph23Rate(0);
@@ -249,13 +323,44 @@ function KwitansiBarang() {
       setBendaharaNip("");
       setPenerimaNama("");
     } catch (err) {
-      console.error('Gagal simpan:', err);
+      console.error('Gagal menyimpan:', err);
       toast.error('Gagal menyimpan. Periksa koneksi atau coba lagi.');
-      setSaveMsg('Gagal menyimpan. Periksa koneksi atau coba lagi.');
     } finally {
       setSaving(false);
-      setTimeout(() => setSaveMsg(""), 4000);
     }
+  };
+
+  const handleConfirmProceedSave = async () => {
+    const missingTerima = !String(terimaDari || '').trim();
+    const missingNota = !(notaNumber > 0);
+    const missingUangSebanyak = !(jumlahDiterimakan > 0);
+    
+    if (missingTerima || missingNota || missingUangSebanyak) {
+      toast.error('Kwitansi tidak dapat disimpan. Lengkapi Terima Dari, Nota Pembayaran, dan Uang Sebanyak terlebih dahulu.', { title: 'Tidak dapat disimpan' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await handleSave();
+      const href = nextHref;
+      setConfirmOpen(false);
+      setNextHref(null);
+      setUnsaved(false);
+      if (href) navigate(href);
+    } catch (err) {
+      console.error('Gagal simpan dari popup:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmCancel = () => {
+    const href = nextHref;
+    setConfirmOpen(false);
+    setNextHref(null);
+    setUnsaved(false);
+    if (href) navigate(href);
   };
 
   return (
@@ -287,14 +392,18 @@ function KwitansiBarang() {
                 { label: 'Untuk pembayaran', key: 'untukPembayaran', bind: { value: untukPembayaran, onChange: (e)=> setUntukPembayaran(e.target.value) } },
                 { label: 'Uraian', noInput: true, key: 'uraian' },
                 { label: 'Nota Pembayaran', key: 'notaPembayaran', type: 'numberCurrency' },
+                { label: '', key: 'dppButton', type: 'dppButton' },
+                { label: 'DPP', key: 'dpp', type: 'dppDisplay', showIf: useMode === 'dpp' },
                 { label: 'PPh 21', key: 'pph21', type: 'tax' },
                 { label: 'PPh 22', key: 'pph22', type: 'tax' },
                 { label: 'PPh 23', key: 'pph23', type: 'tax' },
                 { label: 'PPN', key: 'ppn', type: 'tax' },
                 { label: 'PAD', key: 'pad', type: 'tax' },
+                { label: 'Pajak', key: 'taxModeButton', type: 'taxModeButton' },
                 { label: 'Jumlah diterimakan', key: 'jumlahDiterimakan', type: 'calculated' }
               ].map((f, idx) => {
                 if (f.heading) return (<div key={idx} className="text-center fw-semibold my-2 kwitansi-subtitle">KWITANSI</div>);
+                if (f.showIf === false) return null;
                 return (
                   <div className="kw-row mb-3" key={idx}>
                     <div className="kw-label-cell">
@@ -302,8 +411,45 @@ function KwitansiBarang() {
                     </div>
                     <div className="kw-input-cell">
                       {f.noInput && <div className="text-muted small fst-italic">&nbsp;</div>}
+                      {f.type === 'dppButton' && (
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${useMode === 'dpp' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                          onClick={() => setUseMode(useMode === 'dpp' ? 'nota' : 'dpp')}
+                          disabled={!notaNumber || notaNumber === 0}
+                        >
+                          {useMode === 'dpp' ? '- Hapus DPP' : '+ Gunakan DPP'}
+                        </button>
+                      )}
                       {!f.noInput && f.type === 'numberCurrency' && f.key === 'notaPembayaran' && (
                         <input className="form-control form-control-sm" value={nota === 0 ? '' : formatNumber(notaNumber)} onChange={(e)=> setNota(parseNumeric(e.target.value))} inputMode="numeric" placeholder="0" />
+                      )}
+                      {f.type === 'dppDisplay' && (
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          value={calculateDpp().toLocaleString('id-ID')}
+                          disabled
+                          style={{ backgroundColor: '#f8f9fa', fontWeight: '600' }}
+                        />
+                      )}
+                      {f.type === 'taxModeButton' && (
+                        <div className="btn-group w-100" role="group">
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${taxMode === 'kurang' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                            onClick={() => setTaxMode('kurang')}
+                          >
+                            Dikurangi Pajak
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${taxMode === 'tambah' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                            onClick={() => setTaxMode('tambah')}
+                          >
+                            Ditambah Pajak
+                          </button>
+                        </div>
                       )}
                       {!f.noInput && f.type === 'tax' && (
                         <div className="d-flex justify-content-end align-items-center gap-2 flex-wrap">
@@ -400,7 +546,6 @@ function KwitansiBarang() {
               {saving ? 'Menyimpan…' : (editId ? 'Update' : 'Save')}
             </button>
           </div>
-          {saveMsg && (<div className="mt-2 small text-end">{saveMsg}</div>)}
         </div>
       </div>
       {/* Hidden print content */}
@@ -411,6 +556,30 @@ function KwitansiBarang() {
       </div>
       {showPreview && (
         <PreviewModal data={previewData} onClose={() => setShowPreview(false)} />
+      )}
+
+      {/* Modal konfirmasi simpan perubahan */}
+      {confirmOpen && (
+        <>
+          <div className="modal-backdrop show"></div>
+          <div className="modal d-block" tabIndex="-1" role="dialog" aria-modal="true">
+            <div className="modal-dialog modal-dialog-centered" role="document" style={{maxWidth: '320px', width: '320px'}}>
+              <div className="modal-content" style={{borderRadius: '8px'}}>
+                <div className="modal-header" style={{backgroundColor: '#f8f9fa', borderBottom: '1px solid #dee2e6', padding: '12px 16px'}}>
+                  <h5 className="modal-title" style={{color: '#495057', fontSize: '1rem'}}>Save Changes?</h5>
+                  <button type="button" className="btn-close" aria-label="Close" onClick={handleConfirmCancel} style={{fontSize: '0.75rem'}}></button>
+                </div>
+                <div className="modal-body" style={{backgroundColor: '#fff', color: '#212529', padding: '20px 16px', textAlign: 'center'}}>
+                  <p style={{margin: 0, fontSize: '0.9rem'}}>Do you want to save your changes?</p>
+                </div>
+                <div className="modal-footer" style={{backgroundColor: '#f8f9fa', borderTop: '1px solid #dee2e6', padding: '12px 16px', justifyContent: 'center', gap: '10px'}}>
+                  <button type="button" className="btn" style={{backgroundColor: '#6c757d', color: '#fff', border: 'none', padding: '8px 24px', fontSize: '0.9rem'}} onClick={handleConfirmCancel}>No</button>
+                  <button type="button" className="btn" style={{backgroundColor: '#495057', color: '#fff', border: 'none', padding: '8px 24px', fontSize: '0.9rem'}} onClick={handleConfirmProceedSave}>Yes</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

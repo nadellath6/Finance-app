@@ -5,6 +5,7 @@ import { onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from './ui/ToastProvider';
 import Header from './layout/Header';
+import { exportUserData, downloadBackupFile, restoreUserData, validateBackupFile } from '../services/backupService';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -53,7 +54,8 @@ export default function UserManagement() {
         return {
           id: doc.id,
           ...data,
-          createdAt: data.createdAt || new Date().toISOString()
+          createdAt: data.createdAt || new Date().toISOString(),
+          lastBackup: data.lastBackup || null
         };
       });
       setUsers(userList);
@@ -122,6 +124,82 @@ export default function UserManagement() {
     }
   };
 
+  const handleBackup = async (user) => {
+    try {
+      success('Memulai backup data...');
+      
+      // Export data user
+      const backup = await exportUserData(user.id);
+      
+      // Download file JSON
+      downloadBackupFile(backup, user.email);
+      
+      // Update lastBackup timestamp
+      const userRef = doc(db, 'users', user.id);
+      await updateDoc(userRef, {
+        lastBackup: new Date().toISOString()
+      });
+      
+      success(`Backup data ${user.email} berhasil diunduh!`);
+      
+      // Refresh user list
+      fetchUsers();
+    } catch (err) {
+      console.error('Backup failed:', err);
+      error('Gagal backup data: ' + err.message);
+    }
+  };
+
+  const handleRestore = (user) => {
+    // Trigger file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      try {
+        // Validate and parse file
+        const backup = await validateBackupFile(file);
+        
+        // Show confirmation with stats
+        const honorCount = backup.data.laporan_honor?.length || 0;
+        const jasaCount = backup.data.laporan_jasa?.length || 0;
+        const barangCount = backup.data.laporan_barang?.length || 0;
+        const totalCount = honorCount + jasaCount + barangCount;
+        
+        const confirmMsg = 
+          `Restore data dari backup?\n\n` +
+          `User: ${user.email}\n` +
+          `Tanggal Backup: ${new Date(backup.exportDate).toLocaleString('id-ID')}\n\n` +
+          `Data yang akan di-restore:\n` +
+          `- Honor: ${honorCount} dokumen\n` +
+          `- Jasa: ${jasaCount} dokumen\n` +
+          `- Barang: ${barangCount} dokumen\n` +
+          `Total: ${totalCount} dokumen\n\n` +
+          `⚠️ PERHATIAN: Data akan DITAMBAHKAN (bukan mengganti data lama)`;
+        
+        if (!confirm(confirmMsg)) return;
+        
+        success('Memulai restore data...');
+        
+        // Restore data
+        const result = await restoreUserData(user.id, backup);
+        
+        success(
+          `Restore berhasil! Total: ${result.total} data\n` +
+          `(Honor: ${result.restored.honor}, Jasa: ${result.restored.jasa}, Barang: ${result.restored.barang})`
+        );
+        
+      } catch (err) {
+        console.error('Restore error:', err);
+        error('Gagal restore: ' + err.message);
+      }
+    };
+    input.click();
+  };
+
   // Filter users berdasarkan search query
   const filteredUsers = users.filter(user => {
     const query = searchQuery.toLowerCase();
@@ -184,21 +262,23 @@ export default function UserManagement() {
       </div>
       
       <div className="table-responsive">
-        <table className="table table-bordered table-sm">
-          <thead>
+        <table className="table table-bordered table-sm table-hover">
+          <thead className="table-light">
             <tr>
-              <th style={{ backgroundColor: '#e9ecef' }}>No</th>
-              <th style={{ backgroundColor: '#e9ecef' }}>Username</th>
-              <th style={{ backgroundColor: '#e9ecef' }}>Email</th>
-              <th style={{ backgroundColor: '#e9ecef' }}>Role</th>
-              <th style={{ backgroundColor: '#e9ecef' }}>Dibuat</th>
-              <th style={{ backgroundColor: '#e9ecef' }}>Aksi</th>
+              <th>No</th>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Dibuat</th>
+              <th>Last Backup</th>
+              <th>Aksi</th>
+              <th>Aksi Backup</th>
             </tr>
           </thead>
           <tbody>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="6" className="text-center text-muted">
+                <td colSpan="8" className="text-center text-muted">
                   {searchQuery ? 'Tidak ada hasil yang sesuai dengan pencarian' : 'Belum ada pengguna terdaftar'}
                 </td>
               </tr>
@@ -219,52 +299,93 @@ export default function UserManagement() {
                       <option value="user">User</option>
                     </select>
                   ) : (
-                    <span className="badge bg-secondary">{user.role === 'Bendahara' ? 'User' : user.role}</span>
+                    <span className={`badge ${user.role === 'admin' ? 'bg-danger' : 'bg-secondary'}`}>
+                      {user.role === 'Bendahara' ? 'User' : user.role}
+                    </span>
                   )}
                 </td>
-                <td>{user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID') : '-'}</td>
+                <td>
+                  {user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                  }) : '-'}
+                </td>
+                <td>
+                  {user.lastBackup ? (
+                    <small className="text-success">
+                      <i className="bi bi-check-circle me-1"></i>
+                      {new Date(user.lastBackup).toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </small>
+                  ) : (
+                    <small className="text-muted">Never</small>
+                  )}
+                </td>
                 <td>
                   {editingUser?.id === user.id ? (
-                    <>
+                    <div className="btn-group btn-group-sm">
                       <button 
-                        className="btn btn-sm btn-outline-secondary me-1"
+                        className="btn btn-success"
                         onClick={handleSaveRole}
                       >
                         Simpan
                       </button>
                       <button 
-                        className="btn btn-sm btn-outline-secondary"
+                        className="btn btn-secondary"
                         onClick={() => setEditingUser(null)}
                       >
                         Batal
                       </button>
-                    </>
+                    </div>
                   ) : (
-                    <>
+                    <div className="btn-group btn-group-sm">
                       <button 
-                        className="btn btn-sm btn-outline-secondary me-1"
+                        className="btn btn-outline-primary"
                         onClick={() => handleEditRole(user)}
                         title="Ubah Role"
                       >
-                        Ubah Role
+                        Role
                       </button>
                       <button 
-                        className="btn btn-sm btn-outline-warning me-1"
+                        className="btn btn-outline-warning"
                         onClick={() => handleResetPassword(user.email)}
                         title="Reset Password"
                       >
-                        Reset Password
+                        Reset
                       </button>
                       <button 
-                        className="btn btn-sm btn-outline-secondary"
+                        className="btn btn-outline-danger"
                         onClick={() => handleDeleteUser(user.id, user.email)}
                         disabled={user.email === 'admin1@gmail.com' || user.email === currentUserEmail}
                         title={user.email === 'admin1@gmail.com' ? 'Admin utama tidak dapat dihapus' : user.email === currentUserEmail ? 'Tidak dapat menghapus akun sendiri' : 'Hapus'}
                       >
                         Hapus
                       </button>
-                    </>
+                    </div>
                   )}
+                </td>
+                <td>
+                  <div className="btn-group btn-group-sm">
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => handleBackup(user)}
+                      title="Export & Download Backup"
+                    >
+                      Backup
+                    </button>
+                    <button 
+                      className="btn btn-info"
+                      onClick={() => handleRestore(user)}
+                      title="Upload & Restore Backup"
+                    >
+                      Restore
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))

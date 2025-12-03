@@ -94,6 +94,7 @@ export default function LaporanBarang(){
         'No Rek': r.kodeRek || '-',
         'Untuk Pembayaran': r.untukPembayaran || '-',
         'Nota': r.notaPembayaran || '',
+        'DPP': r.dpp || '',
         'PPh 21': r.pph21 || '',
         'PPh 22': r.pph22 || '',
         'PPh 23': r.pph23 || '',
@@ -172,6 +173,7 @@ export default function LaporanBarang(){
                   <th style={{backgroundColor: '#e9ecef'}}>No Rek</th>
                   <th style={{backgroundColor: '#e9ecef'}}>Untuk Pembayaran</th>
                   <th style={{backgroundColor: '#e9ecef'}}>Nota</th>
+                  <th style={{backgroundColor: '#e9ecef'}}>DPP</th>
                   <th style={{backgroundColor: '#e9ecef'}}>PPh 21</th>
                   <th style={{backgroundColor: '#e9ecef'}}>PPh 22</th>
                   <th style={{backgroundColor: '#e9ecef'}}>PPh 23</th>
@@ -189,7 +191,7 @@ export default function LaporanBarang(){
               </thead>
               <tbody className="text-start">
                 {rows.length === 0 && (
-                  <tr><td colSpan={17} className="text-center text-muted">Belum ada data</td></tr>
+                  <tr><td colSpan={18} className="text-center text-muted">Belum ada data</td></tr>
                 )}
                 {(function(){
                   const q = (search||'').toLowerCase();
@@ -205,7 +207,7 @@ export default function LaporanBarang(){
                   const numbered = filtered.map((r, i) => ({ r, nomor: filtered.length - i }));
                   const pageRows = numbered.slice(0, pageSize);
                   if (pageRows.length === 0) {
-                    return (<tr><td colSpan={17} className="text-center text-muted">Tidak ada data yang cocok</td></tr>);
+                    return (<tr><td colSpan={18} className="text-center text-muted">Tidak ada data yang cocok</td></tr>);
                   }
                   return pageRows.map(({ r, nomor }) => {
                     const sig = r.signatures || {};
@@ -219,6 +221,7 @@ export default function LaporanBarang(){
                         <td>{r.kodeRek || '-'}</td>
                         <td className="text-wrap" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.untukPembayaran || '-'}</td>
                         <td>{r.notaPembayaran ? formatNumberID(r.notaPembayaran) : ''}</td>
+                        <td>{r.dpp ? formatNumberID(r.dpp) : ''}</td>
                         <td>{r.pph21 ? formatNumberID(r.pph21) : ''}</td>
                         <td>{r.pph22 ? formatNumberID(r.pph22) : ''}</td>
                         <td>{r.pph23 ? formatNumberID(r.pph23) : ''}</td>
